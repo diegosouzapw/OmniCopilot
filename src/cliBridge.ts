@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
-import { DEFAULT_BASE_URL, serverRootUrl } from "./client";
-import { SECRET_API_KEY } from "./provider";
+import { serverRootUrl } from "./client";
+import { cachedLoadRoutes } from "./routes";
 
 interface CliTool {
   id: string;
@@ -29,10 +29,15 @@ export const CLI_TOOLS: CliTool[] = [
 const TERMINAL_NAME = "OmniRoute Setup";
 
 function shellQuote(value: string): string {
+  const sanitized = value.replace(/[\r\n]/g, "");
   if (process.platform === "win32") {
-    return `"${value.replace(/"/g, '\\"')}"`;
+    const escaped = sanitized.replace(/["^\\]/g, String.raw`\$&`);
+    return `"${escaped}"`;
   }
-  return `'${value.replace(/'/g, `'\\''`)}'`;
+  // POSIX: escape every ' as '\'' so the value survives a single-quoted
+  // argument. String.raw keeps the backslash literal (no double escaping).
+  const escaped = sanitized.replaceAll("'", String.raw`'\''`);
+  return `'${escaped}'`;
 }
 
 /**
@@ -51,10 +56,32 @@ export async function configureCliTool(
     : await pickTool();
   if (!tool) return;
 
+  const routes = await cachedLoadRoutes(context);
+  if (routes.length === 0) {
+    void vscode.window.showWarningMessage(
+      vscode.l10n.t("Add an OmniRoute server in the panel before configuring a coding CLI.")
+    );
+    return;
+  }
+  let route = routes[0];
+  if (routes.length > 1) {
+    const picked = await vscode.window.showQuickPick(
+      routes.map((r) => ({ label: r.name, description: serverRootUrl(r.baseUrl), route: r })),
+      { title: vscode.l10n.t("OmniRoute: pick a server for {0}", tool.label) }
+    );
+    if (!picked) return;
+    route = picked.route;
+  }
+
   const cfg = vscode.workspace.getConfiguration("omnicopilot");
-  const cliPath = cfg.get<string>("cliPath", "omniroute").trim() || "omniroute";
-  const root = serverRootUrl(cfg.get<string>("baseUrl", DEFAULT_BASE_URL));
-  const apiKey = await context.secrets.get(SECRET_API_KEY);
+  const configuredCliPath = cfg.get<string>("cliPath", "omniroute").trim();
+  if (/[&|;$`\r\n<>"'()^%!\\]/.test(configuredCliPath)) {
+    void vscode.window.showErrorMessage(vscode.l10n.t("Invalid CLI path: shell metacharacters are not allowed."));
+    return;
+  }
+  const cliPath = shellQuote(configuredCliPath || "omniroute");
+  const root = serverRootUrl(route.baseUrl);
+  const apiKey = route.apiKey;
 
   const isLocal = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:|\/|$)/i.test(root);
   const args = [tool.subcommand];
@@ -62,7 +89,9 @@ export async function configureCliTool(
     args.push("--remote", shellQuote(root));
   }
 
-  const command = `${cliPath} ${args.join(" ")}`;
+  const command = process.platform === "win32" && cliPath.startsWith('"')
+    ? `& ${cliPath} ${args.join(" ")}`
+    : `${cliPath} ${args.join(" ")}`;
   log.info(`Running in terminal: ${command}${apiKey ? " (API key via env)" : ""}`);
 
   const existing = vscode.window.terminals.find((t) => t.name === TERMINAL_NAME);

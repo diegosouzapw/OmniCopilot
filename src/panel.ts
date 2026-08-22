@@ -1,14 +1,35 @@
+import * as crypto from "node:crypto";
 import * as vscode from "vscode";
-import { DEFAULT_BASE_URL, OmniRouteClient, serverRootUrl } from "./client";
-import { SECRET_API_KEY } from "./provider";
+import { formatErrorValue, normalizeBaseUrl } from "./client";
+import { cachedLoadRoutes, getClientForRoute, saveRoutes } from "./routes";
+
+interface RawRouteInput {
+  id?: string;
+  name?: string;
+  url?: string;
+  apiKey?: string;
+}
+
+type PanelMessage =
+  | { type: "ready" | "test" }
+  | { type: "save"; routes?: RawRouteInput[] }
+  | { type: "action"; command?: string };
+
+interface PanelRoute {
+  id: string;
+  name: string;
+  url: string;
+  hasKey: boolean;
+  online: boolean;
+  modelCount: number | null;
+}
+
 
 interface PanelStatus {
   type: "status";
-  online: boolean;
-  url: string;
-  modelCount: number | null;
-  hasKey: boolean;
-  detail?: string;
+  routes: PanelRoute[];
+  onlineCount: number;
+  total: number;
 }
 
 /** Sidebar webview: connection status, server URL and API key form,
@@ -24,7 +45,7 @@ export class OmniPanelProvider implements vscode.WebviewViewProvider {
     private readonly onSettingsSaved: () => Promise<void>
   ) {}
 
-  /** Reveal the panel (used by the managementCommand / status bar). */
+  /** Reveal the panel (used by the status bar / manage command). */
   async focus(): Promise<void> {
     await vscode.commands.executeCommand(`${OmniPanelProvider.viewId}.focus`);
   }
@@ -32,20 +53,43 @@ export class OmniPanelProvider implements vscode.WebviewViewProvider {
   /** Push a fresh status snapshot into the webview, if it is open. */
   async refreshStatus(): Promise<void> {
     if (!this.view) return;
+
+    // 1. Instantly render saved routes so input fields load in 0ms
+    try {
+      const routes = await cachedLoadRoutes(this.context);
+      const instantStatus: PanelStatus = {
+        type: "status",
+        routes: routes.map((r) => ({
+          id: r.id,
+          name: r.name,
+          url: r.baseUrl,
+          hasKey: Boolean(r.apiKey),
+          online: false,
+          modelCount: null,
+        })),
+        onlineCount: 0,
+        total: routes.length,
+      };
+      void this.view.webview.postMessage(instantStatus);
+    } catch (err) {
+      this.log.debug(`Panel initial render error: ${formatErrorValue(err)}`);
+    }
+
+    // 2. Fast parallel probe for live status
     void this.view.webview.postMessage(await this.buildStatus());
   }
 
   resolveWebviewView(view: vscode.WebviewView): void {
     this.view = view;
-    view.webview.options = { enableScripts: true };
+    view.webview.options = { enableScripts: true, localResourceRoots: [this.context.extensionUri] };
     view.webview.html = this.html();
 
-    view.webview.onDidReceiveMessage(async (msg: Record<string, unknown>) => {
+    view.webview.onDidReceiveMessage(async (msg: PanelMessage) => {
       try {
         await this.handleMessage(msg);
       } catch (err) {
-        this.log.error(`Panel message failed: ${String(err)}`);
-        void vscode.window.showErrorMessage(`OmniRoute: ${String(err)}`);
+        this.log.error(`Panel message failed: ${formatErrorValue(err)}`);
+        void vscode.window.showErrorMessage(`OmniRoute: ${formatErrorValue(err)}`);
       }
     });
 
@@ -56,7 +100,7 @@ export class OmniPanelProvider implements vscode.WebviewViewProvider {
     void this.refreshStatus();
   }
 
-  private async handleMessage(msg: Record<string, unknown>): Promise<void> {
+  private async handleMessage(msg: PanelMessage): Promise<void> {
     switch (msg.type) {
       case "ready":
       case "test":
@@ -64,86 +108,90 @@ export class OmniPanelProvider implements vscode.WebviewViewProvider {
         break;
 
       case "save": {
-        // Store the server root; `/v1` is appended per request by the client.
-        const url = serverRootUrl(String(msg.url ?? ""));
-        await vscode.workspace
-          .getConfiguration("omnicopilot")
-          .update("baseUrl", url, vscode.ConfigurationTarget.Global);
+        const incoming = Array.isArray(msg.routes) ? msg.routes : [];
+        const routes: Array<{ id: string; name: string; baseUrl: string; apiKey?: string }> = [];
+        for (const o of incoming) {
+          if (!o || typeof o !== "object") continue;
+          const key = String(o.apiKey ?? "").trim();
+          routes.push({
+            id: String(o.id ?? ""),
+            name: String(o.name ?? "").trim() || "Route",
+            baseUrl: normalizeBaseUrl(String(o.url ?? "")),
+            ...(key ? { apiKey: key } : {}),
+          });
 
-        // Empty key field = keep the stored key; the explicit Clear button removes it.
-        const key = String(msg.apiKey ?? "").trim();
-        if (key) {
-          await this.context.secrets.store(SECRET_API_KEY, key);
-          this.log.info("API key stored via panel");
         }
-
+        if (routes.length === 0) break; // guard: never save an empty route list
+        await saveRoutes(this.context, routes);
+        this.log.info(`Saved ${routes.length} route(s) via panel`);
         await this.onSettingsSaved();
         await this.refreshStatus();
         break;
       }
 
-      case "clearKey":
-        await this.context.secrets.delete(SECRET_API_KEY);
-        this.log.info("API key cleared via panel");
-        await this.onSettingsSaved();
-        await this.refreshStatus();
+      case "action": {
+        const allowedCommands = new Set([
+          "omnicopilot.openDashboard",
+          "omnicopilot.manage",
+          "omnicopilot.refreshModels",
+          "omnicopilot.configureCliTool",
+          "omnicopilot.checkConnection",
+          "omnicopilot.installOmniRoute",
+          "omnicopilot.openGitHub",
+        ]);
+        if (typeof msg.command !== "string" || !allowedCommands.has(msg.command)) break;
+        await vscode.commands.executeCommand(msg.command);
         break;
-
-      case "action":
-        await vscode.commands.executeCommand(String(msg.command));
-        break;
+      }
     }
   }
 
   private async buildStatus(): Promise<PanelStatus> {
-    const url = vscode.workspace
-      .getConfiguration("omnicopilot")
-      .get<string>("baseUrl", DEFAULT_BASE_URL);
-    const apiKey = await this.context.secrets.get(SECRET_API_KEY);
-    const client = new OmniRouteClient({ baseUrl: url, apiKey: apiKey || undefined });
-
-    const online = await client.ping(3000);
-    let modelCount: number | null = null;
-    let detail: string | undefined;
-    if (online) {
-      try {
-        modelCount = (await client.listModels()).length;
-      } catch (err) {
-        detail = String(err instanceof Error ? err.message : err);
-      }
-    }
-
+    const routes = await cachedLoadRoutes(this.context);
+    const routeStatuses = await Promise.all(
+      routes.map(async (r) => {
+        const client = getClientForRoute(r, this.log);
+        const online = await client.ping(5000);
+        return {
+          id: r.id,
+          name: r.name,
+          url: client.baseUrl,
+          hasKey: Boolean(r.apiKey),
+          online,
+          modelCount: null,
+        };
+      })
+    );
     return {
       type: "status",
-      online,
-      url: serverRootUrl(url),
-      modelCount,
-      hasKey: Boolean(apiKey),
-      detail,
+      routes: routeStatuses,
+      onlineCount: routeStatuses.filter((s) => s.online).length,
+      total: routeStatuses.length,
+
     };
   }
 
   private html(): string {
-    const nonce = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+    const nonce = crypto.randomBytes(16).toString("hex");
     const csp = `default-src 'none'; style-src 'unsafe-inline'; script-src 'nonce-${nonce}';`;
     const t = vscode.l10n.t;
     const S = {
-      checking: t("Checking…"),
-      testing: t("Testing…"),
-      serverUrl: t("Server URL"),
+      title: t("OmniRoute for Copilot"),
+      add: t("Add server"),
+      remove: t("Remove this server"),
+      serverName: t("Name"),
+      serverUrl: t("Base URL"),
+      urlPlaceholder: t("http://localhost:20128/v1"),
       apiKey: t("API key"),
-      keyPlaceholder: t("paste your OmniRoute API key"),
-      saveTest: t("Save & Test"),
-      clearKey: t("Clear key"),
-      clearKeyTitle: t("Remove the stored API key"),
-      keyStored: t("A key is stored in the OS keychain. Leave the field empty to keep it."),
-      keyNone: t("No key stored — only needed when your OmniRoute requires one."),
-      onlineWithCount: t("Online — {0} models available"),
+      keyPlaceholder: t("paste key (optional)"),
+      keyStored: t("A key is stored in the OS keychain. Empty to keep."),
       online: t("Online"),
-      onlineBlocked: t("Online (models blocked)"),
-      offline: t("Offline — server unreachable"),
+      offline: t("Offline"),
+      save: t("Save servers"),
+      saved: t("Saved."),
+      summary: t("{0}/{1} servers online"),
       linkRefresh: t("Refresh models in the picker"),
-      linkDashboard: t("Open OmniRoute dashboard"),
+      linkDashboard: t("Open a dashboard"),
       linkCli: t("Configure a coding CLI (Codex, Claude Code…)"),
       linkInstall: t("Install OmniRoute"),
       linkGitHub: t("OmniRoute on GitHub"),
@@ -154,100 +202,118 @@ export class OmniPanelProvider implements vscode.WebviewViewProvider {
 <meta charset="UTF-8">
 <meta http-equiv="Content-Security-Policy" content="${csp}">
 <style>
-  body { font-family: var(--vscode-font-family); color: var(--vscode-foreground); padding: 10px 14px; }
+  body { font-family: var(--vscode-font-family); color: var(--vscode-foreground); padding: 10px 14px; font-size: 12px; }
   h3 { margin: 4px 0 10px; font-size: 13px; display: flex; align-items: center; gap: 7px; }
   .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--vscode-charts-red); display: inline-block; }
   .dot.on { background: var(--vscode-charts-green); }
-  .muted { color: var(--vscode-descriptionForeground); font-size: 11.5px; margin: 2px 0 12px; word-break: break-all; }
-  label { display: block; font-size: 11px; margin: 10px 0 3px; color: var(--vscode-descriptionForeground); text-transform: uppercase; letter-spacing: .04em; }
-  input { width: 100%; box-sizing: border-box; padding: 5px 7px; border-radius: 3px;
-    background: var(--vscode-input-background); color: var(--vscode-input-foreground);
-    border: 1px solid var(--vscode-input-border, transparent); outline: none; }
-  input:focus { border-color: var(--vscode-focusBorder); }
-  .row { display: flex; gap: 6px; margin-top: 12px; }
-  button { flex: 1; padding: 5px 8px; border: none; border-radius: 3px; cursor: pointer;
-    background: var(--vscode-button-background); color: var(--vscode-button-foreground); font-size: 12px; }
-  button:hover { background: var(--vscode-button-hoverBackground); }
-  button.secondary { background: var(--vscode-button-secondaryBackground); color: var(--vscode-button-secondaryForeground); }
-  .links { margin-top: 16px; border-top: 1px solid var(--vscode-widget-border, rgba(128,128,128,.25)); padding-top: 8px; }
-  .link { display: block; padding: 5px 2px; cursor: pointer; font-size: 12.5px; color: var(--vscode-textLink-foreground); }
+  .dot.off { background: var(--vscode-charts-red); }
+  .card { border: 1px solid var(--vscode-input-border, #555); border-radius: 4px; padding: 8px; margin-bottom: 8px; }
+  .row { display: flex; gap: 6px; align-items: center; margin-bottom: 4px; }
+  .row label { width: 64px; opacity: .8; flex: none; }
+  input[type=text], input[type=password] { flex: 1; background: var(--vscode-input-background); color: var(--vscode-input-foreground); border: 1px solid var(--vscode-input-border, transparent); padding: 3px 5px; }
+  .status { display: flex; align-items: center; gap: 6px; min-height: 14px; opacity: .9; }
+  .remove { background: none; border: none; color: var(--vscode-editorError-foreground); cursor: pointer; font-size: 13px; padding: 0 4px; }
+  .remove:disabled { opacity: .35; cursor: default; }
+  .hint { opacity: .7; font-style: italic; padding: 6px 0; }
+  button.primary { width: 100%; padding: 6px; cursor: pointer; margin-top: 4px; }
+  .links { margin-top: 10px; display: flex; flex-direction: column; gap: 4px; }
+  .link { cursor: pointer; opacity: .9; display: flex; align-items: center; gap: 6px; }
   .link:hover { text-decoration: underline; }
-  .badge { font-weight: 600; }
-  .warn { color: var(--vscode-charts-orange); font-size: 11.5px; margin-top: 8px; word-break: break-word; }
-  .keyhint { font-size: 11px; color: var(--vscode-descriptionForeground); margin-top: 3px; }
+  .codicon { font-family: "codicon"; font-size: 14px; line-height: 1; }
 </style>
 </head>
 <body>
-  <h3><span id="dot" class="dot"></span><span id="statusText">${S.checking}</span></h3>
-  <div class="muted" id="urlText"></div>
+<h3><span id="dot" class="dot"></span> ${S.title}</h3>
+<div id="summary" style="opacity:.8; margin-bottom:8px"></div>
+<div id="routes"></div>
+<button id="add" class="primary">＋ ${S.add}</button>
+<button id="save" class="primary">${S.save}</button>
 
-  <label for="url">${S.serverUrl}</label>
-  <input id="url" type="text" placeholder="${DEFAULT_BASE_URL}" />
+<div class="links">
+  <div class="link" data-cmd="omnicopilot.refreshModels"><span class="codicon codicon-sync"></span> ${S.linkRefresh}</div>
+  <div class="link" data-cmd="omnicopilot.openDashboard"><span class="codicon codicon-dashboard"></span> ${S.linkDashboard}</div>
+  <div class="link" data-cmd="omnicopilot.configureCliTool"><span class="codicon codicon-terminal"></span> ${S.linkCli}</div>
+  <div class="link" data-cmd="omnicopilot.installOmniRoute"><span class="codicon codicon-cloud-download"></span> ${S.linkInstall}</div>
+  <div class="link" data-cmd="omnicopilot.openGitHub"><span class="codicon codicon-github"></span> ${S.linkGitHub}</div>
+</div>
 
-  <label for="key">${S.apiKey}</label>
-  <input id="key" type="password" placeholder="${S.keyPlaceholder}" />
-  <div class="keyhint" id="keyHint"></div>
 
-  <div class="row">
-    <button id="save">${S.saveTest.replace("&", "&amp;")}</button>
-    <button id="clearKey" class="secondary" title="${S.clearKeyTitle}">${S.clearKey}</button>
-  </div>
-  <div class="warn" id="detail" style="display:none"></div>
+<script nonce="${nonce}">
+  const vscodeApi = acquireVsCodeApi();
+  const STRINGS = ${JSON.stringify(S)};
+  function el(tag, props) { const n = document.createElement(tag); if (props) Object.assign(n, props); return n; }
+  const host = document.getElementById("routes");
+  const dot = document.getElementById("dot");
+  const summaryEl = document.getElementById("summary");
+  const addBtn = document.getElementById("add");
+  const saveBtn = document.getElementById("save");
+  let routes = []; // [{id, name, url, hasKey, online, modelCount}]
 
-  <div class="links">
-    <span class="link" data-cmd="omnicopilot.refreshModels">↻ ${S.linkRefresh}</span>
-    <span class="link" data-cmd="omnicopilot.openDashboard">▤ ${S.linkDashboard}</span>
-    <span class="link" data-cmd="omnicopilot.configureCliTool">⌨ ${S.linkCli}</span>
-    <span class="link" data-cmd="omnicopilot.installOmniRoute">⇩ ${S.linkInstall}</span>
-    <span class="link" data-cmd="omnicopilot.openGitHub">★ ${S.linkGitHub}</span>
-  </div>
+  function render() {
+    host.textContent = "";
+    if (routes.length === 0) host.appendChild(el("div", { className: "hint", textContent: "＋ " + STRINGS.add }));
+    routes.forEach((r, i) => {
+      const card = el("div", { className: "card" });
+      const name = el("input", { type: "text", value: r.name || "", maxLength: 40 });
+      const url = el("input", { type: "text", value: r.url || "", placeholder: STRINGS.urlPlaceholder, spellcheck: false });
+      const key = el("input", { type: "password", value: "", placeholder: r.hasKey ? STRINGS.keyStored : STRINGS.keyPlaceholder, spellcheck: false });
+      const stDot = el("span", { className: "dot" + (r.online ? " on" : " off") });
+      const stText = el("span", { textContent: r.online ? STRINGS.online : STRINGS.offline });
+      const rem = el("button", { className: "remove", title: STRINGS.remove, textContent: "✕" });
+      rem.disabled = routes.length <= 1;
+      rem.addEventListener("click", () => { routes.splice(i, 1); render(); });
 
-  <script nonce="${nonce}">
-    const S = ${JSON.stringify(S)};
-    const vscodeApi = acquireVsCodeApi();
-    const $ = (id) => document.getElementById(id);
-
-    $("save").addEventListener("click", () => {
-      vscodeApi.postMessage({ type: "save", url: $("url").value, apiKey: $("key").value });
-      $("key").value = "";
-      $("statusText").textContent = S.testing;
+      const row = (label, field) => {
+        const rw = el("div", { className: "row" });
+        rw.appendChild(el("label", { textContent: label }));
+        rw.appendChild(field);
+        return rw;
+      };
+      card.appendChild(row(STRINGS.serverName, name));
+      card.appendChild(row(STRINGS.serverUrl, url));
+      card.appendChild(row(STRINGS.apiKey, key));
+      const st = el("div", { className: "status" });
+      st.appendChild(stDot); st.appendChild(stText); st.appendChild(el("span", { style: "flex:1" }));
+      card.appendChild(st); card.appendChild(rem);
+      card.__idx = i;
+      host.appendChild(card);
     });
-    $("clearKey").addEventListener("click", () => vscodeApi.postMessage({ type: "clearKey" }));
-    document.querySelectorAll(".link").forEach((el) =>
-      el.addEventListener("click", () => vscodeApi.postMessage({ type: "action", command: el.dataset.cmd }))
-    );
+  }
 
-    window.addEventListener("message", (event) => {
-      const msg = event.data;
-      if (msg.type !== "status") return;
-      $("dot").className = "dot" + (msg.online ? " on" : "");
-      if (!$("url").value) $("url").value = msg.url;
-      $("urlText").textContent = msg.url;
-      $("keyHint").textContent = msg.hasKey ? S.keyStored : S.keyNone;
-      const st = $("statusText");
-      st.textContent = "";
-      if (msg.online) {
-        if (msg.modelCount !== null) {
-          // Localized pattern with {0} for the count; badge-wrap the number.
-          const [prefix, suffix] = S.onlineWithCount.split("{0}");
-          st.append(prefix ?? "");
-          const badge = document.createElement("span");
-          badge.className = "badge";
-          badge.textContent = String(msg.modelCount);
-          st.append(badge, suffix ?? "");
-        } else {
-          st.textContent = msg.detail ? S.onlineBlocked : S.online;
-        }
-      } else {
-        st.textContent = S.offline;
-      }
-      const d = $("detail");
-      if (msg.detail) { d.textContent = msg.detail; d.style.display = "block"; }
-      else { d.style.display = "none"; }
+  addBtn.addEventListener("click", () => {
+    routes.push({ id: "new-" + crypto.randomUUID(), name: "", url: "", hasKey: false, online: false, modelCount: null });
+    render();
+  });
+
+  saveBtn.addEventListener("click", () => {
+    const payload = [];
+    Array.from(host.querySelectorAll(".card")).forEach((cardEl) => {
+      const inputs = cardEl.querySelectorAll("input");
+      const r = routes[cardEl.__idx];
+      payload.push({ id: r?.id ?? "", name: inputs[0].value, url: inputs[1].value, apiKey: inputs[2].value });
     });
+    vscodeApi.postMessage({ type: "save", routes: payload });
+    saveBtn.textContent = STRINGS.saved;
+    setTimeout(() => { saveBtn.textContent = STRINGS.save; }, 1200);
+  });
 
-    vscodeApi.postMessage({ type: "ready" });
-  </script>
+  document.querySelectorAll(".link").forEach((lnk) =>
+    lnk.addEventListener("click", () => vscodeApi.postMessage({ type: "action", command: lnk.dataset.cmd }))
+  );
+
+  window.addEventListener("message", (event) => {
+    const msg = event.data;
+    if (msg.type !== "status") return;
+    dot.className = "dot" + (msg.onlineCount > 0 ? " on" : " off");
+    summaryEl.textContent = msg.total === 1
+      ? (msg.routes[0]?.online ? STRINGS.online : STRINGS.offline)
+      : STRINGS.summary.replace("{0}", msg.onlineCount).replace("{1}", msg.total);
+    routes = msg.routes.map((r) => ({ id: r.id, name: r.name, url: r.url, hasKey: r.hasKey, online: r.online, modelCount: r.modelCount }));
+    render();
+  });
+
+  vscodeApi.postMessage({ type: "ready" });
+</script>
 </body>
 </html>`;
   }

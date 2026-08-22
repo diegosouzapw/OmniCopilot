@@ -1,9 +1,15 @@
 node_modules/
 dist/
 out/
+scripts/
 *.vsix
 *.log
 .DS_Store
+.testagent
+.serena
+.superpowers
+.qodo
+.vscode
 
 # Secrets — never commit (publish tokens live here)
 .env

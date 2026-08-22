@@ -1,7 +1,7 @@
 {
   "name": "omnicopilot",
   "displayName": "OmniRoute for GitHub Copilot Chat",
-  "description": "1200+ AI models in your Copilot Chat \u2014 free & forever free. Powered by OmniRoute: 340+ providers (90+ free) \u2014 Kimi, Claude, GPT, Gemini, GLM, DeepSeek, Qwen \u2014 with agent mode, tool calling, vision and auto-fallback. MIT open source.",
+  "description": "1200+ AI models in your Copilot Chat — free & forever free. Powered by OmniRoute: 340+ providers (90+ free) — Kimi, Claude, GPT, Gemini, GLM, DeepSeek, Qwen — with agent mode, tool calling, vision and auto-fallback. MIT open source.",
   "version": "1.1.0",
   "publisher": "diegosouzapw",
   "license": "MIT",
@@ -58,6 +58,45 @@
   "main": "./dist/extension.js",
   "l10n": "./l10n",
   "contributes": {
+    "languageModelTools": [
+      {
+        "name": "omniroute_search",
+        "displayName": "OmniRoute Search",
+        "modelDescription": "Search the web or news through an automatically selected OmniRoute Search provider.",
+        "canBeReferencedInPrompt": true,
+        "inputSchema": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["query"],
+          "properties": {
+            "query": { "type": "string", "minLength": 1, "maxLength": 500, "description": "Search query." },
+            "model": { "type": "string", "minLength": 1, "description": "Optional Search provider/model override." },
+            "routeId": { "type": "string", "minLength": 1, "description": "Optional local OmniRoute route override; never sent upstream." },
+            "max_results": { "type": "integer", "minimum": 1, "maximum": 100, "default": 5 },
+            "search_type": { "type": "string", "enum": ["web", "news"], "default": "web" }
+          }
+        }
+      },
+      {
+        "name": "omniroute_rerank",
+        "displayName": "OmniRoute Rerank",
+        "modelDescription": "Rerank text documents through an automatically selected OmniRoute Rerank model.",
+        "canBeReferencedInPrompt": true,
+        "inputSchema": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["query", "documents"],
+          "properties": {
+            "query": { "type": "string", "minLength": 1, "description": "Non-empty relevance query." },
+            "documents": { "type": "array", "minItems": 1, "items": { "type": "string" }, "description": "Documents to rank." },
+            "model": { "type": "string", "minLength": 1, "description": "Optional Rerank model override." },
+            "routeId": { "type": "string", "minLength": 1, "description": "Optional local OmniRoute route override; never sent upstream." },
+            "top_n": { "type": "integer", "minimum": 1 },
+            "return_documents": { "type": "boolean" }
+          }
+        }
+      }
+    ],
     "viewsContainers": {
       "activitybar": [
         {
@@ -81,7 +120,61 @@
       {
         "vendor": "omniroute",
         "displayName": "OmniRoute",
-        "managementCommand": "omnicopilot.manage"
+        "configuration": "omnicopilot"
+      },
+      {
+        "vendor": "omniroute-2",
+        "displayName": "OmniRoute #2",
+        "configuration": "omnicopilot",
+        "when": "omnicopilot.routeCount >= 2"
+      },
+      {
+        "vendor": "omniroute-3",
+        "displayName": "OmniRoute #3",
+        "configuration": "omnicopilot",
+        "when": "omnicopilot.routeCount >= 3"
+      },
+      {
+        "vendor": "omniroute-4",
+        "displayName": "OmniRoute #4",
+        "configuration": "omnicopilot",
+        "when": "omnicopilot.routeCount >= 4"
+      },
+      {
+        "vendor": "omniroute-5",
+        "displayName": "OmniRoute #5",
+        "configuration": "omnicopilot",
+        "when": "omnicopilot.routeCount >= 5"
+      },
+      {
+        "vendor": "omniroute-6",
+        "displayName": "OmniRoute #6",
+        "configuration": "omnicopilot",
+        "when": "omnicopilot.routeCount >= 6"
+      },
+      {
+        "vendor": "omniroute-7",
+        "displayName": "OmniRoute #7",
+        "configuration": "omnicopilot",
+        "when": "omnicopilot.routeCount >= 7"
+      },
+      {
+        "vendor": "omniroute-8",
+        "displayName": "OmniRoute #8",
+        "configuration": "omnicopilot",
+        "when": "omnicopilot.routeCount >= 8"
+      },
+      {
+        "vendor": "omniroute-9",
+        "displayName": "OmniRoute #9",
+        "configuration": "omnicopilot",
+        "when": "omnicopilot.routeCount >= 9"
+      },
+      {
+        "vendor": "omniroute-10",
+        "displayName": "OmniRoute #10",
+        "configuration": "omnicopilot",
+        "when": "omnicopilot.routeCount >= 10"
       }
     ],
     "commands": [
@@ -129,6 +222,11 @@
         "command": "omnicopilot.quickActions",
         "category": "OmniRoute",
         "title": "%cmd.quickActions%"
+      },
+      {
+        "command": "omnicopilot.showStatusPopup",
+        "category": "OmniRoute",
+        "title": "%cmd.showStatusPopup%"
       }
     ],
     "configuration": {
@@ -136,9 +234,9 @@
       "properties": {
         "omnicopilot.baseUrl": {
           "type": "string",
-          "default": "http://localhost:20128",
-          "order": 1,
-          "description": "%cfg.baseUrl%"
+          "default": "",
+          "scope": "application",
+          "description": "%cfg.baseUrlDeprecated%"
         },
         "omnicopilot.statusBar": {
           "type": "boolean",
@@ -215,6 +313,121 @@
           "default": "omniroute",
           "order": 9,
           "description": "%cfg.cliPath%"
+        },
+        "omnicopilot.routes": {
+          "type": "array",
+          "default": [],
+          "scope": "application",
+          "description": "%cfg.routes%",
+          "items": {
+            "type": "object",
+            "required": [
+              "baseUrl"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "Unique identifier for the server route."
+              },
+              "name": {
+                "type": "string",
+                "description": "Display name for this OmniRoute server."
+              },
+              "baseUrl": {
+                "type": "string",
+                "description": "Base URL for this OmniRoute server (e.g. http://127.0.0.1:8000/v1)."
+              },
+              "apiKey": {
+                "type": "string",
+                "description": "Optional API key for this server."
+              },
+              "models": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Explicit model whitelist. If empty, all models are imported."
+              },
+              "excludeModels": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Models to exclude from this server."
+              },
+              "prefix": {
+                "type": "string",
+                "description": "Optional prefix for model IDs from this server."
+              },
+              "priority": {
+                "type": "number",
+                "default": 1,
+                "description": "Route priority (lower numbers = higher priority)."
+              },
+              "weight": {
+                "type": "number",
+                "default": 1,
+                "description": "Traffic weight for load balancing between equal priority routes."
+              }
+            }
+          }
+        },
+        "omnicopilot.fallbackMode": {
+          "type": "string",
+          "default": "sameModel",
+          "enum": [
+            "sameModel",
+            "sameFamily",
+            "full",
+            "none"
+          ],
+          "enumDescriptions": [
+            "%cfg.fallbackMode.sameModel%",
+            "%cfg.fallbackMode.sameFamily%",
+            "%cfg.fallbackMode.full%",
+            "%cfg.fallbackMode.none%"
+          ],
+          "description": "%cfg.fallbackMode%"
+        },
+        "omnicopilot.retriesPerServer": {
+          "type": "number",
+          "default": 1,
+          "minimum": 0,
+          "maximum": 5,
+          "description": "%cfg.retriesPerServer%"
+        },
+        "omnicopilot.maxTools": {
+          "type": "number",
+          "default": 0,
+          "minimum": 0,
+          "maximum": 128,
+          "description": "%cfg.maxTools%"
+        },
+        "omnicopilot.modelCacheTtlMinutes": {
+          "type": "number",
+          "default": 60,
+          "minimum": 1,
+          "maximum": 1440,
+          "description": "%cfg.modelCacheTtlMinutes%"
+        },
+        "omnicopilot.compressionOverride": {
+          "type": "string",
+          "default": "serverDefault",
+          "enum": [
+            "serverDefault",
+            "off",
+            "default",
+            "engine:rtk",
+            "engine:caveman"
+          ],
+          "enumDescriptions": [
+            "%cfg.compressionOverride.serverDefault%",
+            "%cfg.compressionOverride.off%",
+            "%cfg.compressionOverride.default%",
+            "%cfg.compressionOverride.rtk%",
+            "%cfg.compressionOverride.caveman%"
+          ],
+          "description": "%cfg.compressionOverride%"
         }
       }
     }

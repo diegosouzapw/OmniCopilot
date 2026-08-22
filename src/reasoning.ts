@@ -5,7 +5,7 @@ import type { OmniRouteModel } from "./types";
  * (`src/shared/reasoning/effortStandardization.ts` in the server repo).
  *
  * Sending a canonical value is what makes this portable: the per-provider
- * mappers downshift a tier a model does not support (e.g. `xhigh` → `high` for
+ * mappers downshift a tier a model does not support (e.g. `xhigh` ÔåÆ `high` for
  * Claude), so a caller can always ask for the top tier without knowing which
  * models implement it.
  */
@@ -16,7 +16,7 @@ export type ReasoningEffort = (typeof REASONING_EFFORTS)[number];
 /**
  * Synonyms editors and users type. `extra`/`max` are the server's own aliases
  * for the top tier; `minimal` is OpenAI's lowest thinking tier, which has no
- * canonical equivalent — it maps to `low` rather than being forwarded verbatim,
+ * canonical equivalent ÔÇö it maps to `low` rather than being forwarded verbatim,
  * because a non-canonical string would reach providers that reject it.
  */
 const EFFORT_ALIASES: Record<string, ReasoningEffort> = {
@@ -53,7 +53,7 @@ export function isReasoningModel(model: Pick<OmniRouteModel, "capabilities">): b
 /**
  * Resolve the effort for one request.
  *
- * The editor's per-request value always wins — VS Code may surface an effort
+ * The editor's per-request value always wins ÔÇö VS Code may surface an effort
  * picker next to the model name, and an explicit user choice must not be
  * overridden by a workspace default. The configured default only applies to
  * models the catalog marks as reasoning-capable: sending `reasoning_effort` to

@@ -42,5 +42,17 @@
   "Stored securely in the OS keychain (SecretStorage). Leave empty to clear.": "Stored securely in the OS keychain (SecretStorage). Leave empty to clear.",
   "Testing…": "Testing…",
   "Which tool should use OmniRoute models?": "Which tool should use OmniRoute models?",
-  "paste your OmniRoute API key": "paste your OmniRoute API key"
+  "paste your OmniRoute API key": "paste your OmniRoute API key",
+  "OmniCopilot: Exceeded maximum allowed vendor routes ({0}). Truncating to 10 routes.": "OmniCopilot: Exceeded maximum allowed vendor routes ({0}). Truncating to 10 routes.",
+  "OmniRoute: {0} requests | {1} tokens": "OmniRoute: {0} requests | {1} tokens",
+  "OmniRoute: Offline": "OmniRoute: Offline",
+  "Single Server Configuration": "Single Server Configuration",
+  "Add at least 2 servers to enable zero-downtime fallback.": "Add at least 2 servers to enable zero-downtime fallback.",
+  "High Latency Detected ({0}ms)": "High Latency Detected ({0}ms)",
+  "{0} is responding slowly. Consider prioritizing faster providers in OmniRoute.": "{0} is responding slowly. Consider prioritizing faster providers in OmniRoute.",
+  "High Token Usage": "High Token Usage",
+  "You have consumed {0} tokens in this session. Monitor your quotas.": "You have consumed {0} tokens in this session. Monitor your quotas.",
+  "OmniRoute status popup reloaded after configuration change.": "OmniRoute status popup reloaded after configuration change.",
+  "Token metrics reset.": "Token metrics reset.",
+  "OmniRoute status popup snoozed for 5 minutes.": "OmniRoute status popup snoozed for 5 minutes."
 }

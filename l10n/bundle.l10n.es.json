@@ -42,5 +42,17 @@
   "Stored securely in the OS keychain (SecretStorage). Leave empty to clear.": "Se almacena de forma segura en el llavero del sistema operativo (SecretStorage). Déjelo vacío para borrarla.",
   "Testing…": "Probando…",
   "Which tool should use OmniRoute models?": "¿Qué herramienta debe usar los modelos de OmniRoute?",
-  "paste your OmniRoute API key": "pegue su clave de API de OmniRoute"
+  "paste your OmniRoute API key": "pegue su clave de API de OmniRoute",
+  "OmniCopilot: Exceeded maximum allowed vendor routes ({0}). Truncating to 10 routes.": "OmniCopilot: Se excedió el número máximo de rutas del proveedor ({0}). Truncando a 10 rutas.",
+  "OmniRoute: {0} requests | {1} tokens": "OmniRoute: {0} solicitudes | {1} tokens",
+  "OmniRoute: Offline": "OmniRoute: Sin conexión",
+  "Single Server Configuration": "Configuración de un solo servidor",
+  "Add at least 2 servers to enable zero-downtime fallback.": "Agregue al menos 2 servidores para habilitar la conmutación sin tiempo de inactividad.",
+  "High Latency Detected ({0}ms)": "Latencia alta detectada ({0}ms)",
+  "{0} is responding slowly. Consider prioritizing faster providers in OmniRoute.": "{0} responde lentamente. Considere priorizar proveedores más rápidos en OmniRoute.",
+  "High Token Usage": "Uso elevado de tokens",
+  "You have consumed {0} tokens in this session. Monitor your quotas.": "Ha consumido {0} tokens en esta sesión. Supervise sus cuotas.",
+  "OmniRoute status popup reloaded after configuration change.": "La ventana emergente de estado de OmniRoute se recargó tras cambiar la configuración.",
+  "Token metrics reset.": "Métricas de tokens reiniciadas.",
+  "OmniRoute status popup snoozed for 5 minutes.": "Ventana emergente de estado de OmniRoute pausada durante 5 minutos."
 }

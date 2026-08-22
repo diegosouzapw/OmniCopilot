@@ -17,30 +17,55 @@
  */
 
 import type { OmniRouteModel } from "./types";
+import { classifySupportedEndpoints } from "./supportedEndpoints";
 
-/** Surfaces OmniRoute can serve from a `/v1/chat/completions` request. It
- * translates Responses-API models transparently, so `responses` counts as
- * conversational — verified live against 192.168.0.17: `cx/gpt-5.5-low` and
- * `cx/gpt-5.6-sol-low` are listed as `supported_endpoints: ["responses"]` and
- * both answer with HTTP 200 through chat/completions. */
-const CONVERSATIONAL_ENDPOINTS = new Set(["chat", "responses"]);
+/** Type strings that unambiguously name a non-chat registry. An unknown type
+ * (e.g. `"llm"` on some builds) or an absent one is treated as conversational:
+ * a server-version skew must never silently empty a route's picker. */
+const SPECIALTY_TYPES = new Set([
+  "audio",
+  "image",
+  "embedding",
+  "rerank",
+  "video",
+  "moderation",
+  "tts",
+  "stt",
+  "search",
+  "searches",
+  "transcription",
+  "transcriptions",
+  "translation",
+  "translations",
+  "speech",
+  "speeches",
+]);
 
 /**
  * Chat rows carry no `type` at all; a typed row is a specialty model, and the
  * server rejects those outright ("… is an image-generation model and cannot be
  * used on /v1/chat/completions", HTTP 400).
  *
- * `supported_endpoints` is only consulted as a backstop for an untyped row that
- * declares no conversational surface at all — filtering on "does not include
- * chat" alone would wrongly drop every Responses-API model.
+ * Only KNOWN specialty types are dropped. Exact normalized endpoint classes
+ * are consulted as a backstop. Unknown values remain eligible for forward
+ * compatibility, but known specialty-only and legacy-Completions-only rows
+ * are excluded because this extension has no transport for those surfaces.
  */
 export function isChatModel(model: OmniRouteModel): boolean {
   const type = (model.type ?? "").trim().toLowerCase();
-  if (type && type !== "chat") return false;
+  if (SPECIALTY_TYPES.has(type)) return false;
 
   const endpoints = model.supported_endpoints;
   if (Array.isArray(endpoints) && endpoints.length > 0) {
-    return endpoints.some((e) => CONVERSATIONAL_ENDPOINTS.has(String(e).trim().toLowerCase()));
+    const classes = classifySupportedEndpoints(endpoints);
+    if (
+      classes.has("responses") ||
+      classes.has("chatCompletions") ||
+      classes.has("messages")
+    ) {
+      return true;
+    }
+    return classes.size === 1 && classes.has("unknown");
   }
   return true;
 }
@@ -54,15 +79,26 @@ export function isChatModel(model: OmniRouteModel): boolean {
  */
 export function selectChatModels(models: readonly OmniRouteModel[]): OmniRouteModel[] {
   const listedIds = new Set<string>();
+  const byId = new Map<string, OmniRouteModel>();
   for (const model of models) {
-    if (model?.id) listedIds.add(model.id);
+    if (model?.id) {
+      listedIds.add(model.id);
+      byId.set(model.id, model);
+    }
   }
 
   const out: OmniRouteModel[] = [];
   for (const model of models) {
     if (!model?.id) continue;
     if (!isChatModel(model)) continue;
-    if (model.parent && model.parent !== model.id && listedIds.has(model.parent)) continue;
+    if (model.parent && model.parent !== model.id && listedIds.has(model.parent)) {
+      const parent = byId.get(model.parent);
+      // A mirror is a duplicate of a present primary. But when the "parent"
+      // points straight back at this row (a cyclic/misconfigured dual-prefix
+      // pair), dropping both would silently wipe the whole catalog — keep
+      // each row instead of losing the model.
+      if (parent?.parent !== model.id) continue;
+    }
     out.push(model);
   }
   return out;

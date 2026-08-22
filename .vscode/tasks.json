@@ -1,0 +1,115 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Validate latency optimization",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/c",
+				"npx vitest run && npm run package"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "Package optimized extension",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/c",
+				"npm run package"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$tsc"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Create optimized VSIX",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/c",
+				"npx vsce package --no-dependencies"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Validate configurable timeout",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/c",
+				"npx vitest run && npm run package"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "Create updated VSIX",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/c",
+				"npx vsce package --no-dependencies"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Test and package midstream fix VSIX",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/c",
+				"npx vitest run && npx vsce package --no-dependencies"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Build final vsix",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/c",
+				"npx vsce package --no-dependencies"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Package latest VSIX build",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/c",
+				"npx vsce package --no-dependencies"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Build 1.0.1 VSIX",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/c",
+				"npx vsce package --no-dependencies"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		}
+	]
+}

@@ -37,7 +37,7 @@ describe("normalizeReasoningEffort", () => {
 });
 
 describe("isReasoningModel", () => {
-  it("accepts either capability flag — providers disagree on the name", () => {
+  it("accepts either capability flag ÔÇö providers disagree on the name", () => {
     expect(isReasoningModel({ capabilities: { reasoning: true } })).toBe(true);
     expect(isReasoningModel({ capabilities: { thinking: true } })).toBe(true);
   });

@@ -25,5 +25,22 @@
   "cfg.defaultReasoningEffort.medium": "Medium",
   "cfg.defaultReasoningEffort.high": "High",
   "cfg.defaultReasoningEffort.xhigh": "Highest — downshifted for models without it",
-  "cfg.cliPath": "Path to the OmniRoute CLI, used by the \"Configure Coding CLI\" command."
+  "cfg.cliPath": "Path to the OmniRoute CLI, used by the \"Configure Coding CLI\" command.",
+  "cmd.showStatusPopup": "Show OmniRoute Connection Status",
+  "cfg.routes": "List of OmniRoute server routes with optional model whitelists, priorities, and fallback weights.",
+  "cfg.baseUrlDeprecated": "Base URL of your primary OmniRoute server. Note: for multi-server setups, configure omnicopilot.routes instead.",
+  "cfg.fallbackMode": "Cross-server model fallback strategy when a model request fails on the primary route.",
+  "cfg.fallbackMode.sameModel": "Same model: retry the selected model on alternative servers.",
+  "cfg.fallbackMode.sameFamily": "Same family: allow fallback to compatible models in the same provider family.",
+  "cfg.fallbackMode.full": "Full: allow fallback to any compatible model.",
+  "cfg.fallbackMode.none": "None: do not attempt fallback if the request fails.",
+  "cfg.retriesPerServer": "Maximum number of retry attempts per server on transient errors before failing over.",
+  "cfg.maxTools": "Maximum number of tools to send in a single chat request. Extra tools will be omitted defensively.",
+  "cfg.modelCacheTtlMinutes": "Time-to-live in minutes for model catalog cache before automatic background refresh.",
+  "cfg.compressionOverride": "Prompt compression mode sent to OmniRoute servers (x-omniroute-compression header).",
+  "cfg.compressionOverride.serverDefault": "Server Default: do not send an override header; let OmniRoute use its server-configured policy.",
+  "cfg.compressionOverride.off": "Off: bypass token compression for this request.",
+  "cfg.compressionOverride.default": "Default: use OmniRoute standard stacked compression pipeline.",
+  "cfg.compressionOverride.rtk": "RTK Engine: compress terminal output, tool results, and repetitive code blocks.",
+  "cfg.compressionOverride.caveman": "Caveman Engine: aggressive conversational token compression."
 }

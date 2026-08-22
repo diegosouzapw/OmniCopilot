@@ -2,6 +2,7 @@
 .vscode-test/**
 src/**
 test/**
+.testagent/**
 scripts/**
 node_modules/**
 esbuild.mjs
