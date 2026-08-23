@@ -25,6 +25,7 @@
   "OmniRoute is unreachable. Check that it is running (npx omniroute) and that omnicopilot.baseUrl points at it.": "Az OmniRoute nem érhető el. Ellenőrizze, hogy fut-e (npx omniroute), és hogy az omnicopilot.baseUrl rá mutat-e.",
   "OmniRoute model list refreshed.": "Az OmniRoute-modellek listája frissítve.",
   "OmniRoute on GitHub": "OmniRoute a GitHubon",
+  "Extension settings": "Bővítmény beállításai",
   "OmniRoute online — {0}. Click for actions.": "OmniRoute online — {0}. Kattintson a műveletekhez.",
   "OmniRoute unreachable — {0}. Click for actions.": "OmniRoute nem érhető el — {0}. Kattintson a műveletekhez.",
   "OmniRoute: configure a coding CLI": "OmniRoute: kódolási CLI konfigurálása",

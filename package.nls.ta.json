@@ -8,6 +8,7 @@
   "cmd.installOmniRoute": "OmniRoute ஐ நிறுவு (தொடங்குங்கள்)",
   "cmd.configureCliTool": "கோடிங் CLI ஐ உள்ளமை (Codex, Claude Code, Cline…)",
   "cmd.quickActions": "விரைவு செயல்கள்",
+  "cmd.openSettings": "அமைப்புகளைத் திற",
   "view.connection": "இணைப்பு",
   "cfg.baseUrl": "OmniRoute அடிப்படை URL (OpenAI-இணக்கமானது). உங்கள் உள்ளூர் நிறுவலுக்கோ அல்லது எந்தவொரு தொலைநிலை OmniRoute நிகழ்விற்கோ இதை அமைக்கவும்.",
   "cfg.statusBar": "நிலைப் பட்டையில் OmniRoute இணைப்புக் காட்டியைக் காண்பி.",

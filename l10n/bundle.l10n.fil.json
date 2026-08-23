@@ -25,6 +25,7 @@
   "OmniRoute is unreachable. Check that it is running (npx omniroute) and that omnicopilot.baseUrl points at it.": "Hindi maabot ang OmniRoute. Tiyaking tumatakbo ito (npx omniroute) at nakaturo dito ang omnicopilot.baseUrl.",
   "OmniRoute model list refreshed.": "Na-refresh ang listahan ng mga OmniRoute model.",
   "OmniRoute on GitHub": "OmniRoute sa GitHub",
+  "Extension settings": "Mga setting ng extension",
   "OmniRoute online — {0}. Click for actions.": "Online ang OmniRoute — {0}. I-click para sa mga aksyon.",
   "OmniRoute unreachable — {0}. Click for actions.": "Hindi maabot ang OmniRoute — {0}. I-click para sa mga aksyon.",
   "OmniRoute: configure a coding CLI": "OmniRoute: mag-configure ng coding CLI",

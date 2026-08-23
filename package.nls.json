@@ -8,6 +8,7 @@
   "cmd.installOmniRoute": "Install OmniRoute (Get Started)",
   "cmd.configureCliTool": "Configure Coding CLI (Codex, Claude Code, Cline…)",
   "cmd.quickActions": "Quick Actions",
+  "cmd.openSettings": "Open Settings",
   "view.connection": "Connection",
   "cfg.baseUrl": "OmniRoute base URL (OpenAI-compatible). Point it at your local install or any remote OmniRoute instance.",
   "cfg.statusBar": "Show the OmniRoute connection indicator in the status bar.",

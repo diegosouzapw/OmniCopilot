@@ -8,6 +8,7 @@
   "cmd.installOmniRoute": "OmniRouteను ఇన్‌స్టాల్ చేయండి (ప్రారంభించండి)",
   "cmd.configureCliTool": "కోడింగ్ CLIని కాన్ఫిగర్ చేయండి (Codex, Claude Code, Cline…)",
   "cmd.quickActions": "త్వరిత చర్యలు",
+  "cmd.openSettings": "సెట్టింగ్‌లను తెరవండి",
   "view.connection": "కనెక్షన్",
   "cfg.baseUrl": "OmniRoute బేస్ URL (OpenAI-అనుకూలం). దీన్ని మీ లోకల్ ఇన్‌స్టాలేషన్‌కు లేదా ఏదైనా రిమోట్ OmniRoute ఇన్‌స్టాన్స్‌కు సూచించండి.",
   "cfg.statusBar": "స్టేటస్ బార్‌లో OmniRoute కనెక్షన్ సూచికను చూపించండి.",

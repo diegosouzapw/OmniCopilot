@@ -25,6 +25,7 @@
   "OmniRoute is unreachable. Check that it is running (npx omniroute) and that omnicopilot.baseUrl points at it.": "OmniRoute non è raggiungibile. Verifica che sia in esecuzione (npx omniroute) e che omnicopilot.baseUrl punti a esso.",
   "OmniRoute model list refreshed.": "Elenco dei modelli OmniRoute aggiornato.",
   "OmniRoute on GitHub": "OmniRoute su GitHub",
+  "Extension settings": "Impostazioni dell'estensione",
   "OmniRoute online — {0}. Click for actions.": "OmniRoute online — {0}. Fai clic per le azioni.",
   "OmniRoute unreachable — {0}. Click for actions.": "OmniRoute non raggiungibile — {0}. Fai clic per le azioni.",
   "OmniRoute: configure a coding CLI": "OmniRoute: configura una CLI di coding",

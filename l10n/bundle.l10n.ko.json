@@ -25,6 +25,7 @@
   "OmniRoute is unreachable. Check that it is running (npx omniroute) and that omnicopilot.baseUrl points at it.": "OmniRoute에 연결할 수 없습니다. 실행 중인지(npx omniroute), omnicopilot.baseUrl이 해당 서버를 가리키는지 확인하세요.",
   "OmniRoute model list refreshed.": "OmniRoute 모델 목록을 새로 고쳤습니다.",
   "OmniRoute on GitHub": "GitHub의 OmniRoute",
+  "Extension settings": "확장 설정",
   "OmniRoute online — {0}. Click for actions.": "OmniRoute 온라인 — {0}. 클릭하여 작업을 표시합니다.",
   "OmniRoute unreachable — {0}. Click for actions.": "OmniRoute에 연결할 수 없음 — {0}. 클릭하여 작업을 표시합니다.",
   "OmniRoute: configure a coding CLI": "OmniRoute: 코딩 CLI 구성",

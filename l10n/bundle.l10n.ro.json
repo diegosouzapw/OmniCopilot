@@ -25,6 +25,7 @@
   "OmniRoute is unreachable. Check that it is running (npx omniroute) and that omnicopilot.baseUrl points at it.": "OmniRoute nu poate fi contactat. Verificați că rulează (npx omniroute) și că omnicopilot.baseUrl indică spre el.",
   "OmniRoute model list refreshed.": "Lista de modele OmniRoute a fost reîmprospătată.",
   "OmniRoute on GitHub": "OmniRoute pe GitHub",
+  "Extension settings": "Setările extensiei",
   "OmniRoute online — {0}. Click for actions.": "OmniRoute online — {0}. Faceți clic pentru acțiuni.",
   "OmniRoute unreachable — {0}. Click for actions.": "OmniRoute inaccesibil — {0}. Faceți clic pentru acțiuni.",
   "OmniRoute: configure a coding CLI": "OmniRoute: configurați un CLI de codare",

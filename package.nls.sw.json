@@ -8,6 +8,7 @@
   "cmd.installOmniRoute": "Sakinisha OmniRoute (Anza)",
   "cmd.configureCliTool": "Sanidi CLI ya Uandishi wa Msimbo (Codex, Claude Code, Cline…)",
   "cmd.quickActions": "Vitendo vya Haraka",
+  "cmd.openSettings": "Fungua Mipangilio",
   "view.connection": "Muunganisho",
   "cfg.baseUrl": "URL ya msingi ya OmniRoute (inayooana na OpenAI). Ielekeze kwenye usakinishaji wako wa ndani au kwenye seva yoyote ya mbali ya OmniRoute.",
   "cfg.statusBar": "Onyesha kiashiria cha muunganisho wa OmniRoute kwenye upau wa hali.",

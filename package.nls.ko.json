@@ -8,6 +8,7 @@
   "cmd.installOmniRoute": "OmniRoute 설치(시작하기)",
   "cmd.configureCliTool": "코딩 CLI 구성(Codex, Claude Code, Cline…)",
   "cmd.quickActions": "빠른 작업",
+  "cmd.openSettings": "설정 열기",
   "view.connection": "연결",
   "cfg.baseUrl": "OmniRoute 기본 URL(OpenAI 호환)입니다. 로컬 설치 또는 원격 OmniRoute 인스턴스를 가리키도록 설정하세요.",
   "cfg.statusBar": "상태 표시줄에 OmniRoute 연결 표시기를 표시합니다.",

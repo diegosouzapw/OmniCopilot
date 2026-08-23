@@ -25,6 +25,7 @@
   "OmniRoute is unreachable. Check that it is running (npx omniroute) and that omnicopilot.baseUrl points at it.": "OmniRoute אינו נגיש. בדקו שהוא פועל (npx omniroute) ושההגדרה omnicopilot.baseUrl מצביעה עליו.",
   "OmniRoute model list refreshed.": "רשימת המודלים של OmniRoute רועננה.",
   "OmniRoute on GitHub": "OmniRoute ב-GitHub",
+  "Extension settings": "הגדרות התוסף",
   "OmniRoute online — {0}. Click for actions.": "OmniRoute מקוון — {0}. לחצו לפעולות.",
   "OmniRoute unreachable — {0}. Click for actions.": "OmniRoute אינו נגיש — {0}. לחצו לפעולות.",
   "OmniRoute: configure a coding CLI": "OmniRoute: הגדרת CLI לתכנות",

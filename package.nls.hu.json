@@ -8,6 +8,7 @@
   "cmd.installOmniRoute": "OmniRoute telepítése (Első lépések)",
   "cmd.configureCliTool": "Kódolási CLI konfigurálása (Codex, Claude Code, Cline…)",
   "cmd.quickActions": "Gyorsműveletek",
+  "cmd.openSettings": "Beállítások megnyitása",
   "view.connection": "Kapcsolat",
   "cfg.baseUrl": "Az OmniRoute alap URL-je (OpenAI-kompatibilis). Irányítsa a helyi telepítésre vagy bármely távoli OmniRoute-példányra.",
   "cfg.statusBar": "Az OmniRoute kapcsolatjelzőjének megjelenítése az állapotsorban.",

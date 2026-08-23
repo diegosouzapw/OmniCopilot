@@ -8,6 +8,7 @@
   "cmd.installOmniRoute": "I-install ang OmniRoute (Magsimula)",
   "cmd.configureCliTool": "I-configure ang Coding CLI (Codex, Claude Code, Cline…)",
   "cmd.quickActions": "Mga Mabilisang Aksyon",
+  "cmd.openSettings": "Buksan ang Settings",
   "view.connection": "Koneksyon",
   "cfg.baseUrl": "Base URL ng OmniRoute (OpenAI-compatible). Ituro ito sa iyong lokal na pag-install o sa anumang remote na OmniRoute instance.",
   "cfg.statusBar": "Ipakita ang indicator ng koneksyon ng OmniRoute sa status bar.",

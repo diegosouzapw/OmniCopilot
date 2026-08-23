@@ -25,6 +25,7 @@
   "OmniRoute is unreachable. Check that it is running (npx omniroute) and that omnicopilot.baseUrl points at it.": "OmniRoute haifikiki. Hakikisha inaendeshwa (npx omniroute) na kwamba omnicopilot.baseUrl inaielekeza.",
   "OmniRoute model list refreshed.": "Orodha ya modeli za OmniRoute imesasishwa.",
   "OmniRoute on GitHub": "OmniRoute kwenye GitHub",
+  "Extension settings": "Mipangilio ya kiendelezi",
   "OmniRoute online — {0}. Click for actions.": "OmniRoute iko mtandaoni — {0}. Bofya kwa vitendo.",
   "OmniRoute unreachable — {0}. Click for actions.": "OmniRoute haifikiki — {0}. Bofya kwa vitendo.",
   "OmniRoute: configure a coding CLI": "OmniRoute: sanidi CLI ya uandishi wa msimbo",

@@ -8,6 +8,7 @@
   "cmd.installOmniRoute": "نصب OmniRoute (شروع به کار)",
   "cmd.configureCliTool": "پیکربندی CLI کدنویسی (Codex، Claude Code، Cline…)",
   "cmd.quickActions": "اقدامات سریع",
+  "cmd.openSettings": "باز کردن تنظیمات",
   "view.connection": "اتصال",
   "cfg.baseUrl": "نشانی URL پایه OmniRoute (سازگار با OpenAI). آن را به نصب محلی خود یا هر نمونه راه دور OmniRoute اشاره دهید.",
   "cfg.statusBar": "نمایش نشانگر اتصال OmniRoute در نوار وضعیت.",

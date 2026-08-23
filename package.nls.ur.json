@@ -8,6 +8,7 @@
   "cmd.installOmniRoute": "OmniRoute انسٹال کریں (شروع کریں)",
   "cmd.configureCliTool": "کوڈنگ CLI کنفیگر کریں (Codex, Claude Code, Cline…)",
   "cmd.quickActions": "فوری اعمال",
+  "cmd.openSettings": "ترتیبات کھولیں",
   "view.connection": "کنکشن",
   "cfg.baseUrl": "OmniRoute کا بنیادی URL (OpenAI کے ساتھ ہم آہنگ)۔ اسے اپنی مقامی انسٹالیشن یا کسی بھی ریموٹ OmniRoute انسٹینس کی طرف پوائنٹ کریں۔",
   "cfg.statusBar": "اسٹیٹس بار میں OmniRoute کنکشن انڈیکیٹر دکھائیں۔",

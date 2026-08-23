@@ -8,6 +8,7 @@
   "cmd.installOmniRoute": "Instal OmniRoute (Mulai)",
   "cmd.configureCliTool": "Konfigurasikan CLI Pengodean (Codex, Claude Code, Cline…)",
   "cmd.quickActions": "Tindakan Cepat",
+  "cmd.openSettings": "Buka Pengaturan",
   "view.connection": "Koneksi",
   "cfg.baseUrl": "URL dasar OmniRoute (kompatibel dengan OpenAI). Arahkan ke instalasi lokal Anda atau ke instans OmniRoute jarak jauh mana pun.",
   "cfg.statusBar": "Tampilkan indikator koneksi OmniRoute di bilah status.",

@@ -25,6 +25,7 @@
   "OmniRoute is unreachable. Check that it is running (npx omniroute) and that omnicopilot.baseUrl points at it.": "OmniRoute तक नहीं पहुंचा जा सकता। जांचें कि यह चल रहा है (npx omniroute) और omnicopilot.baseUrl इसकी ओर पॉइंट करता है।",
   "OmniRoute model list refreshed.": "OmniRoute मॉडल सूची रीफ़्रेश हो गई।",
   "OmniRoute on GitHub": "GitHub पर OmniRoute",
+  "Extension settings": "एक्सटेंशन सेटिंग्स",
   "OmniRoute online — {0}. Click for actions.": "OmniRoute ऑनलाइन — {0}। कार्रवाइयों के लिए क्लिक करें।",
   "OmniRoute unreachable — {0}. Click for actions.": "OmniRoute तक नहीं पहुंचा जा सकता — {0}। कार्रवाइयों के लिए क्लिक करें।",
   "OmniRoute: configure a coding CLI": "OmniRoute: कोई कोडिंग CLI कॉन्फ़िगर करें",

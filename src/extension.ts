@@ -70,6 +70,9 @@ function registerCommands(context: vscode.ExtensionContext, log: vscode.LogOutpu
   // The management gear in "Manage Models" and the status-bar menu both land
   // on the visual panel (Activity Bar view) where URL + API key live.
   register("omnicopilot.manage", () => panel?.focus());
+  register("omnicopilot.openSettings", () =>
+    vscode.commands.executeCommand("workbench.action.openSettings", "omnicopilot")
+  );
   register("omnicopilot.setApiKey", () => setApiKey(context, log));
 
   register("omnicopilot.refreshModels", async () => {

@@ -8,6 +8,7 @@
   "cmd.installOmniRoute": "OmniRoute-u quraşdır (Başlanğıc)",
   "cmd.configureCliTool": "Kodlaşdırma CLI-ni konfiqurasiya et (Codex, Claude Code, Cline…)",
   "cmd.quickActions": "Sürətli əməliyyatlar",
+  "cmd.openSettings": "Parametrləri aç",
   "view.connection": "Bağlantı",
   "cfg.baseUrl": "OmniRoute baza URL-i (OpenAI ilə uyğun). Onu lokal quraşdırmanıza və ya istənilən uzaq OmniRoute instansiyasına yönəldin.",
   "cfg.statusBar": "Status panelində OmniRoute bağlantı indikatorunu göstər.",

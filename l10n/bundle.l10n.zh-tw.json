@@ -25,6 +25,7 @@
   "OmniRoute is unreachable. Check that it is running (npx omniroute) and that omnicopilot.baseUrl points at it.": "無法連線至 OmniRoute。請檢查它是否正在執行（npx omniroute），以及 omnicopilot.baseUrl 是否指向它。",
   "OmniRoute model list refreshed.": "OmniRoute 模型清單已重新整理。",
   "OmniRoute on GitHub": "GitHub 上的 OmniRoute",
+  "Extension settings": "擴充功能設定",
   "OmniRoute online — {0}. Click for actions.": "OmniRoute 已上線 — {0}。按一下以檢視動作。",
   "OmniRoute unreachable — {0}. Click for actions.": "無法連線至 OmniRoute — {0}。按一下以檢視動作。",
   "OmniRoute: configure a coding CLI": "OmniRoute：設定程式碼 CLI",

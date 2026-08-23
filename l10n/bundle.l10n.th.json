@@ -25,6 +25,7 @@
   "OmniRoute is unreachable. Check that it is running (npx omniroute) and that omnicopilot.baseUrl points at it.": "ไม่สามารถเข้าถึง OmniRoute ได้ ตรวจสอบว่ากำลังทำงานอยู่ (npx omniroute) และ omnicopilot.baseUrl ชี้ไปที่มัน",
   "OmniRoute model list refreshed.": "รีเฟรชรายการโมเดล OmniRoute แล้ว",
   "OmniRoute on GitHub": "OmniRoute บน GitHub",
+  "Extension settings": "การตั้งค่าส่วนขยาย",
   "OmniRoute online — {0}. Click for actions.": "OmniRoute ออนไลน์ — {0} คลิกเพื่อดูการดำเนินการ",
   "OmniRoute unreachable — {0}. Click for actions.": "ไม่สามารถเข้าถึง OmniRoute — {0} คลิกเพื่อดูการดำเนินการ",
   "OmniRoute: configure a coding CLI": "OmniRoute: กำหนดค่า CLI สำหรับเขียนโค้ด",

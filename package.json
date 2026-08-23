@@ -129,6 +129,11 @@
         "command": "omnicopilot.quickActions",
         "category": "OmniRoute",
         "title": "%cmd.quickActions%"
+      },
+      {
+        "command": "omnicopilot.openSettings",
+        "category": "OmniRoute",
+        "title": "%cmd.openSettings%"
       }
     ],
     "configuration": {

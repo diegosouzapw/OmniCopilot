@@ -25,6 +25,7 @@
   "OmniRoute is unreachable. Check that it is running (npx omniroute) and that omnicopilot.baseUrl points at it.": "OmniRoute tidak dapat dicapai. Pastikan ia sedang berjalan (npx omniroute) dan omnicopilot.baseUrl menunjuk kepadanya.",
   "OmniRoute model list refreshed.": "Senarai model OmniRoute disegarkan semula.",
   "OmniRoute on GitHub": "OmniRoute di GitHub",
+  "Extension settings": "Tetapan sambungan",
   "OmniRoute online — {0}. Click for actions.": "OmniRoute dalam talian — {0}. Klik untuk tindakan.",
   "OmniRoute unreachable — {0}. Click for actions.": "OmniRoute tidak dapat dicapai — {0}. Klik untuk tindakan.",
   "OmniRoute: configure a coding CLI": "OmniRoute: konfigurasikan CLI pengekodan",

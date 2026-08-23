@@ -8,6 +8,7 @@
   "cmd.installOmniRoute": "تثبيت OmniRoute (البدء)",
   "cmd.configureCliTool": "تكوين CLI للبرمجة (Codex، Claude Code، Cline…)",
   "cmd.quickActions": "إجراءات سريعة",
+  "cmd.openSettings": "فتح الإعدادات",
   "view.connection": "الاتصال",
   "cfg.baseUrl": "عنوان URL الأساسي لـ OmniRoute (متوافق مع OpenAI). وجّهه إلى التثبيت المحلي لديك أو إلى أي مثيل OmniRoute بعيد.",
   "cfg.statusBar": "إظهار مؤشر اتصال OmniRoute في شريط الحالة.",

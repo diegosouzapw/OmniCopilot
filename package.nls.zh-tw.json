@@ -8,6 +8,7 @@
   "cmd.installOmniRoute": "安裝 OmniRoute（快速入門）",
   "cmd.configureCliTool": "設定程式碼 CLI（Codex、Claude Code、Cline…）",
   "cmd.quickActions": "快速動作",
+  "cmd.openSettings": "開啟設定",
   "view.connection": "連線",
   "cfg.baseUrl": "OmniRoute 基底 URL（與 OpenAI 相容）。可指向本機安裝或任何遠端 OmniRoute 執行個體。",
   "cfg.statusBar": "在狀態列顯示 OmniRoute 連線指示器。",

@@ -8,6 +8,7 @@
   "cmd.installOmniRoute": "Nainštalovať OmniRoute (Začíname)",
   "cmd.configureCliTool": "Konfigurovať kódovacie CLI (Codex, Claude Code, Cline…)",
   "cmd.quickActions": "Rýchle akcie",
+  "cmd.openSettings": "Otvoriť nastavenia",
   "view.connection": "Pripojenie",
   "cfg.baseUrl": "Základná URL adresa OmniRoute (kompatibilná s OpenAI). Nasmerujte ju na lokálnu inštaláciu alebo ľubovoľnú vzdialenú inštanciu OmniRoute.",
   "cfg.statusBar": "Zobrazovať indikátor pripojenia OmniRoute v stavovom riadku.",

@@ -147,6 +147,7 @@ export class OmniPanelProvider implements vscode.WebviewViewProvider {
       linkCli: t("Configure a coding CLI (Codex, Claude Code…)"),
       linkInstall: t("Install OmniRoute"),
       linkGitHub: t("OmniRoute on GitHub"),
+      linkSettings: t("Extension settings"),
     };
     return /* html */ `<!DOCTYPE html>
 <html lang="en">
@@ -200,6 +201,7 @@ export class OmniPanelProvider implements vscode.WebviewViewProvider {
     <span class="link" data-cmd="omnicopilot.configureCliTool">⌨ ${S.linkCli}</span>
     <span class="link" data-cmd="omnicopilot.installOmniRoute">⇩ ${S.linkInstall}</span>
     <span class="link" data-cmd="omnicopilot.openGitHub">★ ${S.linkGitHub}</span>
+    <span class="link" data-cmd="omnicopilot.openSettings">⚙ ${S.linkSettings}</span>
   </div>
 
   <script nonce="${nonce}">

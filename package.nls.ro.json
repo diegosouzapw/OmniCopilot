@@ -8,6 +8,7 @@
   "cmd.installOmniRoute": "Instalare OmniRoute (Introducere)",
   "cmd.configureCliTool": "Configurare CLI de codare (Codex, Claude Code, Cline…)",
   "cmd.quickActions": "Acțiuni rapide",
+  "cmd.openSettings": "Deschide setările",
   "view.connection": "Conexiune",
   "cfg.baseUrl": "URL-ul de bază OmniRoute (compatibil OpenAI). Îndreptați-l către instalarea locală sau către orice instanță OmniRoute la distanță.",
   "cfg.statusBar": "Afișează indicatorul de conexiune OmniRoute în bara de stare.",

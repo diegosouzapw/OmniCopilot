@@ -8,6 +8,7 @@
   "cmd.installOmniRoute": "Cài đặt OmniRoute (Bắt đầu)",
   "cmd.configureCliTool": "Cấu hình CLI lập trình (Codex, Claude Code, Cline…)",
   "cmd.quickActions": "Thao tác nhanh",
+  "cmd.openSettings": "Mở Cài đặt",
   "view.connection": "Kết nối",
   "cfg.baseUrl": "URL cơ sở của OmniRoute (tương thích OpenAI). Trỏ đến bản cài đặt cục bộ của bạn hoặc bất kỳ phiên bản OmniRoute từ xa nào.",
   "cfg.statusBar": "Hiển thị chỉ báo kết nối OmniRoute trên thanh trạng thái.",
