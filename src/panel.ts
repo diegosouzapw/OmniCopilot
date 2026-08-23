@@ -1,6 +1,8 @@
 import * as vscode from "vscode";
 import { DEFAULT_BASE_URL, OmniRouteClient, serverRootUrl } from "./client";
 import { SECRET_API_KEY } from "./provider";
+import { fetchUsage } from "./usage";
+import type { UsageView } from "./usage";
 
 interface PanelStatus {
   type: "status";
@@ -9,6 +11,8 @@ interface PanelStatus {
   modelCount: number | null;
   hasKey: boolean;
   detail?: string;
+  /** OmniCopilot #8 — the key's own spend. Omitted (not null) when offline. */
+  usage?: UsageView;
 }
 
 /** Sidebar webview: connection status, server URL and API key form,
@@ -105,11 +109,20 @@ export class OmniPanelProvider implements vscode.WebviewViewProvider {
     const online = await client.ping(3000);
     let modelCount: number | null = null;
     let detail: string | undefined;
+    let usage: UsageView | undefined;
     if (online) {
       try {
         modelCount = (await client.listModels()).length;
       } catch (err) {
         detail = String(err instanceof Error ? err.message : err);
+      }
+      try {
+        usage = await fetchUsage(url, apiKey || undefined);
+      } catch {
+        // An unreachable/refused usage endpoint must not blank the status —
+        // the section simply hides. `unsupported` is the same signal, kept
+        // distinct inside the view so the panel can hide it deliberately.
+        usage = undefined;
       }
     }
 
@@ -120,6 +133,7 @@ export class OmniPanelProvider implements vscode.WebviewViewProvider {
       modelCount,
       hasKey: Boolean(apiKey),
       detail,
+      usage,
     };
   }
 
@@ -148,6 +162,12 @@ export class OmniPanelProvider implements vscode.WebviewViewProvider {
       linkInstall: t("Install OmniRoute"),
       linkGitHub: t("OmniRoute on GitHub"),
       linkSettings: t("Extension settings"),
+      usageTitle: t("My usage"),
+      usageDaily: t("Daily"),
+      usageWeekly: t("Weekly"),
+      usageResetsIn: t("resets in {0}"),
+      usageDisabled: t("Usage is not enabled for this key. An admin can turn on the usage command for it in OmniRoute."),
+      usageEmpty: t("Usage is reported, but nothing is cached yet — it fills in after the first requests."),
     };
     return /* html */ `<!DOCTYPE html>
 <html lang="en">
@@ -194,6 +214,11 @@ export class OmniPanelProvider implements vscode.WebviewViewProvider {
     <button id="clearKey" class="secondary" title="${S.clearKeyTitle}">${S.clearKey}</button>
   </div>
   <div class="warn" id="detail" style="display:none"></div>
+
+  <div id="usage" style="display:none">
+    <label id="usageTitle"></label>
+    <div id="usageBody" class="muted"></div>
+  </div>
 
   <div class="links">
     <span class="link" data-cmd="omnicopilot.refreshModels">↻ ${S.linkRefresh}</span>
@@ -246,6 +271,55 @@ export class OmniPanelProvider implements vscode.WebviewViewProvider {
       const d = $("detail");
       if (msg.detail) { d.textContent = msg.detail; d.style.display = "block"; }
       else { d.style.display = "none"; }
+
+      // OmniCopilot #8 — the key's own spend. Build with textContent/createElement
+      // only: quota numbers come from the server and must never reach innerHTML.
+      const usageEl = $("usage");
+      const usageBody = $("usageBody");
+      usageBody.textContent = "";
+      const u = msg.usage;
+      if (!u || u.kind === "unsupported") {
+        usageEl.style.display = "none";
+      } else {
+        $("usageTitle").textContent = S.usageTitle;
+        usageEl.style.display = "block";
+        if (u.kind === "disabled") {
+          usageBody.textContent = S.usageDisabled;
+        } else {
+          const line = (label, text) => {
+            const row = document.createElement("div");
+            const b = document.createElement("strong");
+            b.textContent = label + ": ";
+            row.append(b, text);
+            usageBody.append(row);
+          };
+          const pers = u.personal;
+          if (pers) {
+            const usd = (v) => (typeof v === "number" ? "$" + v.toFixed(2) : "—");
+            const left = (spent, limit) =>
+              typeof limit === "number" && limit > 0
+                ? " (" + Math.max(0, Math.round((1 - spent / limit) * 100)) + "% left)"
+                : "";
+            if (pers.dailyLimitUsd !== null)
+              line(S.usageDaily, usd(pers.dailySpentUsd) + " / " + usd(pers.dailyLimitUsd) + left(pers.dailySpentUsd, pers.dailyLimitUsd));
+            if (pers.weeklyLimitUsd !== null)
+              line(S.usageWeekly, usd(pers.weeklySpentUsd) + " / " + usd(pers.weeklyLimitUsd) + left(pers.weeklySpentUsd, pers.weeklyLimitUsd));
+          }
+          const providers = Array.isArray(u.providers) ? u.providers : [];
+          if (providers.length === 0 && !pers) {
+            usageBody.textContent = S.usageEmpty;
+          } else {
+            for (const snap of providers) {
+              const windows = Object.entries(snap.quotas ?? {});
+              for (const [name, q] of windows) {
+                const rem = typeof q.remaining === "number" ? q.remaining + "% left" : "";
+                const label = snap.provider + (windows.length > 1 ? " · " + name : "");
+                line(label, rem || "—");
+              }
+            }
+          }
+        }
+      }
     });
 
     vscodeApi.postMessage({ type: "ready" });

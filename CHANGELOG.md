@@ -1,5 +1,20 @@
 # Changelog
 
+## Unreleased
+
+- **The panel now shows your key's own spend.** A **My usage** section reads OmniRoute's
+  self-service endpoint (`GET /api/usage/om-usage?format=json`) and renders the daily/weekly
+  spend against its limit, the reset time, and each provider connection's quota side by side —
+  Codex, Claude, OpenCode — instead of one provider's number. The three normal states are
+  surfaced, not hidden behind a 0%: *usage not enabled for this key* (the `allowUsageCommand`
+  flag is off by default), *nothing cached yet*, and — on a server too old for the JSON form —
+  the section simply doesn't render. Closes
+  [#12](https://github.com/diegosouzapw/OmniCopilot/issues/12) → resolves
+  [#8](https://github.com/diegosouzapw/OmniCopilot/issues/8) once the OmniRoute side ships.
+- **Settings are findable.** `OmniRoute: Open Settings` in the Command Palette and an
+  **Extension settings** link in the panel — the discoverability half of
+  [#10](https://github.com/diegosouzapw/OmniCopilot/issues/10).
+
 ## 1.1.0
 
 - **Reasoning effort is forwarded to models that support extended thinking.**

@@ -113,6 +113,28 @@ The default is applied **only** to models the catalog marks as reasoning-capable
 field to a model without thinking support is ignored at best and rejected with a 400 at worst.
 An explicit choice from the chat UI always wins over the setting.
 
+### Your usage in the panel
+
+When OmniRoute runs a recent enough version, the Activity Bar panel shows a **My usage**
+section — your key's own daily/weekly spend against its limit, the reset time, and the quota
+of each provider connection (Codex, Claude, OpenCode…) side by side.
+
+It reads the self-service endpoint `GET /api/usage/om-usage?format=json` with your connection's
+API key — the same data as the terminal `@@om-usage` command, never the management surface.
+
+Three states are normal and distinct:
+
+- **"Usage is not enabled for this key"** — the key lacks the `allowUsageCommand` flag, which
+  is **off by default**. An admin turns it on per key in OmniRoute's API-key manager. This is a
+  setting, not an error.
+- **"nothing is cached yet"** — the key is allowed but the server has no learned quota for the
+  connection yet. It fills in after the first requests.
+- **No section at all** — the OmniRoute server predates `?format=json`; the panel hides it
+  rather than parse the older text form.
+
+Requires OmniRoute with the usage JSON endpoint (v3.8.50+). See
+[`docs/CATALOG.md`](docs/CATALOG.md) for the server version the feature matrix assumes.
+
 ### Dashboard inside VS Code
 
 Set `omnicopilot.dashboardOpen` to `editor` to open the OmniRoute dashboard in a VS Code tab
