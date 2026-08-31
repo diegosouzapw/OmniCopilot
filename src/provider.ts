@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import { expandForAgentsWindow } from "./agentsWindow";
 import { selectChatModels } from "./catalogFilter";
 import { DEFAULT_BASE_URL, OmniRouteClient } from "./client";
 import { estimateTokens, toOpenAiMessages, toOpenAiTools } from "./convert";
@@ -9,6 +10,10 @@ export const SECRET_API_KEY = "omnicopilot.apiKey";
 
 interface OmniModelInfo extends vscode.LanguageModelChatInformation {
   omniModelId: string;
+  /** #14 — proposed-API (`chatProvider`) field read by the host via duck
+   * typing; scopes an entry to one chat session type (the Agents window's
+   * agent host) and removes it from the general picker. See agentsWindow.ts. */
+  targetChatSessionType?: string;
 }
 
 export interface ProviderDeps {
@@ -129,7 +134,9 @@ export class OmniRouteChatProvider
         omniModelId: model.id,
       });
     }
-    return infos;
+    // #14: opt-in second set of entries scoped to the Copilot Agents window.
+    // Same omniModelId → the chat path needs no change for these clones.
+    return expandForAgentsWindow(infos, cfg.get<boolean>("exposeToAgentsWindow", false));
   }
 
   private async offerConnectionHelp(): Promise<void> {

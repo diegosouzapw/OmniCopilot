@@ -26,5 +26,6 @@
   "cfg.defaultReasoningEffort.medium": "Közepes",
   "cfg.defaultReasoningEffort.high": "Magas",
   "cfg.defaultReasoningEffort.xhigh": "Legmagasabb — az azt nem támogató modelleknél lejjebb kerül",
-  "cfg.cliPath": "Az OmniRoute CLI elérési útja, amelyet a \"Kódolási CLI konfigurálása\" parancs használ."
+  "cfg.cliPath": "Az OmniRoute CLI elérési útja, amelyet a \"Kódolási CLI konfigurálása\" parancs használ.",
+  "cfg.exposeToAgentsWindow": "Kísérleti: az OmniRoute-modelleket a Copilot Agents ablakának modellválasztójában is megjeleníti. A VS Code chat.agentHost.byokModels.enabled beállítása és az agent host újraindítása szükséges; a VS Code javasolt API-ját használja, amely változhat."
 }

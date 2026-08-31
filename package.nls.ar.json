@@ -26,5 +26,6 @@
   "cfg.defaultReasoningEffort.medium": "متوسط",
   "cfg.defaultReasoningEffort.high": "مرتفع",
   "cfg.defaultReasoningEffort.xhigh": "الأعلى — يُخفَّض للنماذج التي لا تدعمه",
-  "cfg.cliPath": "مسار OmniRoute CLI، الذي يستخدمه الأمر \"Configure Coding CLI\"."
+  "cfg.cliPath": "مسار OmniRoute CLI، الذي يستخدمه الأمر \"Configure Coding CLI\".",
+  "cfg.exposeToAgentsWindow": "تجريبي: يعرض نماذج OmniRoute أيضًا في منتقي النماذج بنافذة Agents في Copilot. يتطلب إعداد VS Code المسمى chat.agentHost.byokModels.enabled وإعادة تشغيل agent host؛ يستخدم واجهة API مقترحة في VS Code وقد تتغير."
 }

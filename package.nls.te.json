@@ -26,5 +26,6 @@
   "cfg.defaultReasoningEffort.medium": "మధ్యస్థం",
   "cfg.defaultReasoningEffort.high": "ఎక్కువ",
   "cfg.defaultReasoningEffort.xhigh": "అత్యధికం — మద్దతు లేని మోడళ్లలో తగ్గించబడుతుంది",
-  "cfg.cliPath": "\"కోడింగ్ CLIని కాన్ఫిగర్ చేయండి\" ఆదేశం ఉపయోగించే OmniRoute CLI పాత్."
+  "cfg.cliPath": "\"కోడింగ్ CLIని కాన్ఫిగర్ చేయండి\" ఆదేశం ఉపయోగించే OmniRoute CLI పాత్.",
+  "cfg.exposeToAgentsWindow": "ప్రయోగాత్మకం: Copilot Agents window మోడల్ పికర్‌లో కూడా OmniRoute మోడళ్లను చూపుతుంది. VS Code సెట్టింగ్ chat.agentHost.byokModels.enabled మరియు agent host రీస్టార్ట్ అవసరం; మారవచ్చే ప్రతిపాదిత VS Code API ని ఉపయోగిస్తుంది."
 }

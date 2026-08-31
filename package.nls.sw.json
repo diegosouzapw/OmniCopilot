@@ -26,5 +26,6 @@
   "cfg.defaultReasoningEffort.medium": "Wastani",
   "cfg.defaultReasoningEffort.high": "Juu",
   "cfg.defaultReasoningEffort.xhigh": "Juu zaidi — hupunguzwa kwa modeli zisizounga mkono",
-  "cfg.cliPath": "Njia ya CLI ya OmniRoute, inayotumiwa na amri ya \"Sanidi CLI ya Uandishi wa Msimbo\"."
+  "cfg.cliPath": "Njia ya CLI ya OmniRoute, inayotumiwa na amri ya \"Sanidi CLI ya Uandishi wa Msimbo\".",
+  "cfg.exposeToAgentsWindow": "Ya majaribio: huonyesha pia modeli za OmniRoute kwenye kichagua-modeli cha dirisha la Agents la Copilot. Inahitaji mpangilio wa VS Code chat.agentHost.byokModels.enabled na kuwasha upya agent host; hutumia API pendekezwa ya VS Code inayoweza kubadilika."
 }

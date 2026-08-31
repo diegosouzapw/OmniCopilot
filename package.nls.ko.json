@@ -26,5 +26,6 @@
   "cfg.defaultReasoningEffort.medium": "보통",
   "cfg.defaultReasoningEffort.high": "높음",
   "cfg.defaultReasoningEffort.xhigh": "최고 — 미지원 모델에서는 하향 조정",
-  "cfg.cliPath": "\"코딩 CLI 구성\" 명령에서 사용하는 OmniRoute CLI의 경로입니다."
+  "cfg.cliPath": "\"코딩 CLI 구성\" 명령에서 사용하는 OmniRoute CLI의 경로입니다.",
+  "cfg.exposeToAgentsWindow": "실험적: Copilot Agents 창의 모델 선택기에도 OmniRoute 모델을 표시합니다. VS Code 설정 chat.agentHost.byokModels.enabled 및 agent host 재시작이 필요하며, 변경될 수 있는 VS Code 제안 API를 사용합니다."
 }

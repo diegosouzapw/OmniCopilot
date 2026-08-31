@@ -26,5 +26,6 @@
   "cfg.defaultReasoningEffort.medium": "中",
   "cfg.defaultReasoningEffort.high": "高",
   "cfg.defaultReasoningEffort.xhigh": "最高 — 对不支持的模型自动降级",
-  "cfg.cliPath": "OmniRoute CLI 的路径，由“配置编码 CLI”命令使用。"
+  "cfg.cliPath": "OmniRoute CLI 的路径，由“配置编码 CLI”命令使用。",
+  "cfg.exposeToAgentsWindow": "实验性：同时在 Copilot Agents 窗口的模型选择器中列出 OmniRoute 模型。需要 VS Code 设置 chat.agentHost.byokModels.enabled 并重启 agent host；使用可能变更的 VS Code 提案 API。"
 }

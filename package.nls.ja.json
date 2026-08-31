@@ -26,5 +26,6 @@
   "cfg.defaultReasoningEffort.medium": "中",
   "cfg.defaultReasoningEffort.high": "高",
   "cfg.defaultReasoningEffort.xhigh": "最高 — 非対応モデルでは引き下げ",
-  "cfg.cliPath": "「コーディングCLIの構成」コマンドで使用するOmniRoute CLIのパス。"
+  "cfg.cliPath": "「コーディングCLIの構成」コマンドで使用するOmniRoute CLIのパス。",
+  "cfg.exposeToAgentsWindow": "実験的: Copilot の Agents ウィンドウのモデルピッカーにも OmniRoute のモデルを表示します。VS Code の設定 chat.agentHost.byokModels.enabled と agent host の再起動が必要です。変更される可能性のある VS Code の提案中 API を使用します。"
 }

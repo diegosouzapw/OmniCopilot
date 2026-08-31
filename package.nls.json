@@ -26,5 +26,6 @@
   "cfg.defaultReasoningEffort.medium": "Medium",
   "cfg.defaultReasoningEffort.high": "High",
   "cfg.defaultReasoningEffort.xhigh": "Highest — downshifted for models without it",
-  "cfg.cliPath": "Path to the OmniRoute CLI, used by the \"Configure Coding CLI\" command."
+  "cfg.cliPath": "Path to the OmniRoute CLI, used by the \"Configure Coding CLI\" command.",
+  "cfg.exposeToAgentsWindow": "Experimental: also list OmniRoute models in the Copilot Agents window model picker. Requires the VS Code setting chat.agentHost.byokModels.enabled and an agent host restart; uses a proposed VS Code API that may change."
 }

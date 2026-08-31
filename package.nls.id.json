@@ -26,5 +26,6 @@
   "cfg.defaultReasoningEffort.medium": "Sedang",
   "cfg.defaultReasoningEffort.high": "Tinggi",
   "cfg.defaultReasoningEffort.xhigh": "Tertinggi — diturunkan untuk model yang tidak mendukung",
-  "cfg.cliPath": "Jalur ke CLI OmniRoute, digunakan oleh perintah \"Konfigurasikan CLI Pengodean\"."
+  "cfg.cliPath": "Jalur ke CLI OmniRoute, digunakan oleh perintah \"Konfigurasikan CLI Pengodean\".",
+  "cfg.exposeToAgentsWindow": "Eksperimental: juga menampilkan model OmniRoute di pemilih model jendela Agents Copilot. Memerlukan setelan VS Code chat.agentHost.byokModels.enabled dan mulai ulang agent host; menggunakan API usulan VS Code yang dapat berubah."
 }

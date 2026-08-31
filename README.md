@@ -97,6 +97,7 @@ Run **`OmniRoute: Configure Coding CLI`** and pick a tool — the extension driv
 | `omnicopilot.dashboardOpen` | `external` | Open the dashboard in the browser, or in a VS Code tab (`editor`) — see below |
 | `omnicopilot.defaultReasoningEffort` | *(unset)* | Effort for models with extended thinking — `none`/`low`/`medium`/`high`/`xhigh`; see below |
 | `omnicopilot.cliPath` | `omniroute` | Path to the OmniRoute CLI |
+| `omnicopilot.exposeToAgentsWindow` | `false` | Experimental: also list the models in the Copilot Agents window — see below |
 
 ### Reasoning effort
 
@@ -112,6 +113,23 @@ server downshifts a tier a model does not implement, so asking for `xhigh` is al
 The default is applied **only** to models the catalog marks as reasoning-capable: sending the
 field to a model without thinking support is ignored at best and rejected with a 400 at worst.
 An explicit choice from the chat UI always wins over the setting.
+
+### Agents window (experimental)
+
+Turn on `omnicopilot.exposeToAgentsWindow` to also register every tool-calling OmniRoute model
+for the **Copilot Agents window** (the Copilot CLI agent host). VS Code scopes these entries to
+agent-host sessions, so they appear in the Agents window's model picker instead of the regular
+chat picker — the regular picker keeps working unchanged.
+
+Prerequisites, both on the VS Code side:
+
+1. Enable the experimental VS Code setting `chat.agentHost.byokModels.enabled`.
+2. Restart the agent host (or reload the window) after flipping the settings.
+
+This rides a **proposed** VS Code API (`targetChatSessionType`), which is why it ships opt-in
+and default-off: the mechanism can change under us in a VS Code update. If the entries show up
+duplicated in the regular picker instead of the Agents window, your VS Code build does not
+support the proposal yet — turn the setting back off.
 
 ### Your usage in the panel
 

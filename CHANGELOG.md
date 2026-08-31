@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.3.0
+
+- **Agents window (experimental, opt-in).** `omnicopilot.exposeToAgentsWindow` registers a
+  second, agent-host-scoped set of entries for every tool-calling OmniRoute model, so they
+  appear in the **Copilot Agents window** model picker (the regular chat picker is untouched).
+  Requires the experimental VS Code setting `chat.agentHost.byokModels.enabled` and an
+  agent-host restart; built on the proposed `targetChatSessionType` API, hence default-off.
+  Requested in [#9](https://github.com/diegosouzapw/OmniCopilot/issues/9) by @Bulzi-Robb —
+  implementation track [#14](https://github.com/diegosouzapw/OmniCopilot/issues/14).
+
 ## 1.2.0
 
 - **The panel now shows your key's own spend.** A **My usage** section reads OmniRoute's
