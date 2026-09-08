@@ -34,6 +34,15 @@ export interface UsageSnapshot {
   quotas?: Record<string, UsageQuotaWindow>;
 }
 
+export type UsageLimitView = UsageLimitStatus & {
+  dailyResetIn: string;
+  weeklyResetIn: string | null;
+};
+
+export type UsageSnapshotView = Omit<UsageSnapshot, "quotas"> & {
+  quotas?: Record<string, UsageQuotaWindow & { resetIn: string | null }>;
+};
+
 /** Refusals carry only an error; success carries the data. A panel must never
  * read a data field off a refusal — hence the discriminated union. */
 export type UsageResponse =
@@ -52,7 +61,7 @@ export type UsageResponse =
 export type UsageView =
   | { kind: "unsupported" }
   | { kind: "disabled"; message?: string }
-  | { kind: "ready"; personal: UsageLimitStatus | null; providers: UsageSnapshot[] };
+  | { kind: "ready"; personal: UsageLimitView | null; providers: UsageSnapshotView[] };
 
 const USD = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
 
@@ -85,14 +94,37 @@ export function percentLeft(spent: number, limit: number | null): number | null 
 
 /** Resolve the raw response into the panel's three states. Centralises the
  * "older servers answer text" fallback and the providers/provider merge. */
-export function toUsageView(body: UsageResponse): UsageView {
+export function toUsageView(body: UsageResponse, now = Date.now()): UsageView {
   if (body.allowed === false) return { kind: "disabled", message: body.error?.message };
-  const providers = Array.isArray(body.providers)
+  const snapshots = Array.isArray(body.providers)
     ? body.providers
     : body.provider
       ? [body.provider]
       : [];
-  return { kind: "ready", personal: body.personal ?? null, providers };
+  const personal = body.personal
+    ? {
+        ...body.personal,
+        dailyResetIn: formatResetIn(body.personal.dailyResetAtIso, now),
+        weeklyResetIn: body.personal.weeklyResetAtIso
+          ? formatResetIn(body.personal.weeklyResetAtIso, now)
+          : null,
+      }
+    : null;
+  const providers = snapshots.map((snapshot) => ({
+    ...snapshot,
+    quotas: snapshot.quotas
+      ? Object.fromEntries(
+          Object.entries(snapshot.quotas).map(([name, quota]) => [
+            name,
+            {
+              ...quota,
+              resetIn: quota.resetAt ? formatResetIn(quota.resetAt, now) : null,
+            },
+          ])
+        )
+      : undefined,
+  }));
+  return { kind: "ready", personal, providers };
 }
 
 /** GET the usage endpoint. Throws `UsageUnsupportedError` when the server
