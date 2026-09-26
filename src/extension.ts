@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import { DEFAULT_BASE_URL, OmniRouteClient, serverRootUrl } from "./client";
 import { configureCliTool } from "./cliBridge";
+import { gymAppHtml } from "./gymApp";
 import { OmniPanelProvider } from "./panel";
 import { OmniRouteChatProvider, SECRET_API_KEY } from "./provider";
 import { ConnectionStatusBar } from "./statusBar";
@@ -11,6 +12,7 @@ const VENDOR = "omniroute";
 let provider: OmniRouteChatProvider | undefined;
 let statusBar: ConnectionStatusBar | undefined;
 let panel: OmniPanelProvider | undefined;
+let gymPanel: vscode.WebviewPanel | undefined;
 
 function getConfig() {
   return vscode.workspace.getConfiguration("omnicopilot");
@@ -151,6 +153,23 @@ function registerCommands(context: vscode.ExtensionContext, log: vscode.LogOutpu
   );
 
   register("omnicopilot.quickActions", () => quickActions(context));
+
+  register("omnicopilot.openGymDemo", () => {
+    if (gymPanel) {
+      gymPanel.reveal(vscode.ViewColumn.Active);
+      return;
+    }
+    gymPanel = vscode.window.createWebviewPanel(
+      "omnicopilot.gymDemo",
+      "IronFit GymOS · Mumbai",
+      vscode.ViewColumn.Active,
+      { enableScripts: true, retainContextWhenHidden: true }
+    );
+    gymPanel.webview.html = gymAppHtml();
+    gymPanel.onDidDispose(() => {
+      gymPanel = undefined;
+    });
+  });
 }
 
 
@@ -293,4 +312,5 @@ export function deactivate(): void {
   provider = undefined;
   statusBar = undefined;
   panel = undefined;
+  gymPanel = undefined;
 }
