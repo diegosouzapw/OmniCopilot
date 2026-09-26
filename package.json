@@ -131,6 +131,11 @@
         "title": "%cmd.quickActions%"
       },
       {
+        "command": "omnicopilot.openGymDemo",
+        "category": "IronFit GymOS",
+        "title": "Open IronFit GymOS demo"
+      },
+      {
         "command": "omnicopilot.openSettings",
         "category": "OmniRoute",
         "title": "%cmd.openSettings%"

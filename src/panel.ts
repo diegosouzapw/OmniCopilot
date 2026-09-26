@@ -162,6 +162,7 @@ export class OmniPanelProvider implements vscode.WebviewViewProvider {
       linkInstall: t("Install OmniRoute"),
       linkGitHub: t("OmniRoute on GitHub"),
       linkSettings: t("Extension settings"),
+      linkGym: "Open IronFit GymOS demo",
       usageTitle: t("My usage"),
       usageDaily: t("Daily"),
       usageWeekly: t("Weekly"),
@@ -227,6 +228,7 @@ export class OmniPanelProvider implements vscode.WebviewViewProvider {
     <span class="link" data-cmd="omnicopilot.installOmniRoute">⇩ ${S.linkInstall}</span>
     <span class="link" data-cmd="omnicopilot.openGitHub">★ ${S.linkGitHub}</span>
     <span class="link" data-cmd="omnicopilot.openSettings">⚙ ${S.linkSettings}</span>
+    <span class="link" data-cmd="omnicopilot.openGymDemo">🏋 ${S.linkGym}</span>
   </div>
 
   <script nonce="${nonce}">
