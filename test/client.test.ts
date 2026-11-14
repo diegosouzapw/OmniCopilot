@@ -46,6 +46,40 @@ describe("OmniRouteClient.streamChat", () => {
     ]);
   });
 
+  it("yields usage from a final chunk with empty choices", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        sseResponse([
+          'data: {"choices":[{"delta":{"content":"ok"}}]}',
+          'data: {"choices":[],"usage":{"prompt_tokens":12,"completion_tokens":3,"total_tokens":15}}',
+          "data: [DONE]",
+        ])
+      )
+    );
+    const events = await collect(new OmniRouteClient({ baseUrl: "http://x/v1" }));
+    expect(events).toEqual([
+      { kind: "text", text: "ok" },
+      { kind: "usage", usage: { prompt_tokens: 12, completion_tokens: 3, total_tokens: 15 } },
+    ]);
+  });
+
+  it("yields usage when it rides on the finish_reason chunk", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        sseResponse([
+          'data: {"choices":[{"delta":{},"finish_reason":"stop"}],"usage":{"prompt_tokens":407,"completion_tokens":169,"total_tokens":576}}',
+          "data: [DONE]",
+        ])
+      )
+    );
+    const events = await collect(new OmniRouteClient({ baseUrl: "http://x/v1" }));
+    expect(events).toEqual([
+      { kind: "usage", usage: { prompt_tokens: 407, completion_tokens: 169, total_tokens: 576 } },
+    ]);
+  });
+
   it("reassembles fragmented tool calls and flushes on finish_reason", async () => {
     vi.stubGlobal(
       "fetch",

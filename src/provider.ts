@@ -4,7 +4,8 @@ import { selectChatModels } from "./catalogFilter";
 import { DEFAULT_BASE_URL, OmniRouteClient } from "./client";
 import { estimateTokens, toOpenAiMessages, toOpenAiTools } from "./convert";
 import { isReasoningModel, resolveReasoningEffort } from "./reasoning";
-import type { ChatRequest, OmniRouteModel } from "./types";
+import type { ChatRequest, OmniRouteModel, StreamUsage } from "./types";
+import { USAGE_MIME_TYPE, buildUsagePayload } from "./usage";
 
 export const SECRET_API_KEY = "omnicopilot.apiKey";
 
@@ -172,6 +173,7 @@ export class OmniRouteChatProvider
       model: model.omniModelId,
       messages: toOpenAiMessages(messages),
       stream: true,
+      stream_options: { include_usage: true },
       tools: toOpenAiTools(options.tools),
     };
 
@@ -202,10 +204,16 @@ export class OmniRouteChatProvider
     const abort = new AbortController();
     const cancelSub = token.onCancellationRequested(() => abort.abort());
 
+    let serverUsage: StreamUsage | null = null;
+    let completionChars = 0;
+
     try {
       for await (const event of client.streamChat(request, abort.signal)) {
         if (token.isCancellationRequested) break;
-        if (event.kind === "text") {
+        if (event.kind === "usage") {
+          serverUsage = event.usage;
+        } else if (event.kind === "text") {
+          completionChars += event.text.length;
           progress.report(new vscode.LanguageModelTextPart(event.text));
         } else {
           let input: Record<string, unknown>;
@@ -217,6 +225,19 @@ export class OmniRouteChatProvider
           }
           progress.report(new vscode.LanguageModelToolCallPart(event.id, event.name, input));
         }
+      }
+      if (!token.isCancellationRequested) {
+        // VS Code's chat reads this part to drive the Context Window widget.
+        const { payload, estimated } = buildUsagePayload(serverUsage, {
+          promptChars: JSON.stringify(request.messages).length,
+          completionChars,
+        });
+        progress.report(
+          new vscode.LanguageModelDataPart(new TextEncoder().encode(JSON.stringify(payload)), USAGE_MIME_TYPE)
+        );
+        log.debug(
+          `Usage ← ${model.omniModelId}: ${payload.prompt_tokens}+${payload.completion_tokens}${estimated ? " (estimated)" : ""}`
+        );
       }
       this.deps.onActivity?.(true);
     } catch (err) {

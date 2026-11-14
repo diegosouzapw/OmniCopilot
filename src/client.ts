@@ -166,6 +166,10 @@ export class OmniRouteClient {
       throw new Error(chunk.error.message);
     }
 
+    if (chunk.usage && typeof chunk.usage === "object") {
+      yield { kind: "usage", usage: chunk.usage };
+    }
+
     const choice = chunk.choices?.[0];
     if (!choice) return;
 

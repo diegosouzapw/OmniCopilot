@@ -313,7 +313,12 @@ export class OmniPanelProvider implements vscode.WebviewViewProvider {
             for (const snap of providers) {
               const windows = Object.entries(snap.quotas ?? {});
               for (const [name, q] of windows) {
-                const rem = typeof q.remaining === "number" ? q.remaining + "% left" : "";
+                // Providers differ: remainingPercentage, used/total, or remaining.
+                let pct = null;
+                if (typeof q.remainingPercentage === "number") pct = q.remainingPercentage;
+                else if (typeof q.total === "number" && q.total > 0 && typeof q.used === "number") pct = (1 - q.used / q.total) * 100;
+                else if (typeof q.remaining === "number") pct = q.remaining;
+                const rem = pct === null ? "" : Math.max(0, Math.min(100, Math.round(pct))) + "% left";
                 const label = snap.provider + (windows.length > 1 ? " · " + name : "");
                 line(label, (rem || "—") + reset(q.resetIn));
               }

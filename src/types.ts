@@ -68,6 +68,8 @@ export interface ChatRequest {
   model: string;
   messages: ChatMessage[];
   stream: true;
+  /** Ask for the final usage chunk (OpenAI-compatible). */
+  stream_options?: { include_usage: boolean };
   tools?: ChatTool[];
   tool_choice?: "auto" | "required";
   temperature?: number;
@@ -92,7 +94,21 @@ export interface StreamDelta {
   tool_calls?: StreamToolCallDelta[];
 }
 
+/** Token accounting as reported by an OpenAI-compatible server. */
+export interface StreamUsage {
+  prompt_tokens?: number;
+  completion_tokens?: number;
+  total_tokens?: number;
+  prompt_tokens_details?: { cached_tokens?: number };
+  /** Anthropic-style names some gateways use. */
+  input_tokens?: number;
+  output_tokens?: number;
+}
+
 export interface StreamChunk {
+  /** Present on the final chunk when `stream_options.include_usage` is set;
+   * some servers send it with an empty `choices` array. */
+  usage?: StreamUsage | null;
   choices?: Array<{
     delta?: StreamDelta;
     finish_reason?: string | null;
@@ -103,4 +119,5 @@ export interface StreamChunk {
 /** Normalized streaming events yielded by the client. */
 export type StreamEvent =
   | { kind: "text"; text: string }
-  | { kind: "toolCall"; id: string; name: string; args: string };
+  | { kind: "toolCall"; id: string; name: string; args: string }
+  | { kind: "usage"; usage: StreamUsage };

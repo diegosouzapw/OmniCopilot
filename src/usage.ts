@@ -24,6 +24,7 @@ export interface UsageQuotaWindow {
   used?: number;
   total?: number;
   remaining?: number;
+  remainingPercentage?: number;
   resetAt?: string | null;
 }
 
@@ -155,4 +156,50 @@ export async function fetchUsage(
   } finally {
     clearTimeout(timer);
   }
+}
+
+/** Percentage of a quota window still available, or null when unknowable.
+ * Providers differ: some send `remainingPercentage`, some only `used`/`total`,
+ * some only `remaining`. Clamped to 0–100. */
+export function quotaRemainingPercent(q: UsageQuotaWindow): number | null {
+  let pct: number | null = null;
+  if (typeof q.remainingPercentage === "number") pct = q.remainingPercentage;
+  else if (typeof q.total === "number" && q.total > 0 && typeof q.used === "number")
+    pct = (1 - q.used / q.total) * 100;
+  else if (typeof q.remaining === "number") pct = q.remaining;
+  return pct === null || !Number.isFinite(pct) ? null : Math.max(0, Math.min(100, Math.round(pct)));
+}
+
+/** Mime type VS Code's Copilot Chat reads from a language-model response to
+ * feed the Context Window widget. Without it the widget shows 0 tokens. */
+export const USAGE_MIME_TYPE = "usage";
+
+export interface TokenUsagePayload {
+  prompt_tokens: number;
+  completion_tokens: number;
+  total_tokens: number;
+  prompt_tokens_details: { cached_tokens: number };
+}
+
+/** Builds the payload to report once a response ends. Uses the server's numbers
+ * when present; otherwise falls back to a ~4 chars/token estimate so the widget
+ * is approximately right instead of stuck at 0. */
+export function buildUsagePayload(
+  usage: import("./types").StreamUsage | null,
+  fallback: { promptChars: number; completionChars: number }
+): { payload: TokenUsagePayload; estimated: boolean } {
+  const num = (v: unknown): number | null => (typeof v === "number" && Number.isFinite(v) && v >= 0 ? v : null);
+  const p = num(usage?.prompt_tokens) ?? num(usage?.input_tokens);
+  const c = num(usage?.completion_tokens) ?? num(usage?.output_tokens);
+  const prompt = p ?? Math.ceil(fallback.promptChars / 4);
+  const completion = c ?? Math.ceil(fallback.completionChars / 4);
+  return {
+    estimated: p === null || c === null,
+    payload: {
+      prompt_tokens: prompt,
+      completion_tokens: completion,
+      total_tokens: prompt + completion,
+      prompt_tokens_details: { cached_tokens: num(usage?.prompt_tokens_details?.cached_tokens) ?? 0 },
+    },
+  };
 }

@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildUsagePayload,
   formatResetIn,
   formatUsd,
   percentLeft,
+  quotaRemainingPercent,
   toUsageView,
 } from "../src/usage";
 import type { UsageResponse } from "../src/usage";
@@ -112,5 +114,50 @@ describe("formatters", () => {
     expect(formatResetIn(null, now)).toBe("unknown");
     expect(formatResetIn("not-a-date", now)).toBe("unknown");
     expect(formatResetIn("2026-08-19T11:00:00Z", now)).toBe("now"); // already past
+  });
+});
+
+describe("quotaRemainingPercent", () => {
+  it("prefers remainingPercentage, then used/total, then remaining", () => {
+    expect(quotaRemainingPercent({ remainingPercentage: 42, used: 1, total: 10, remaining: 7 })).toBe(42);
+    expect(quotaRemainingPercent({ used: 25, total: 100 })).toBe(75);
+    expect(quotaRemainingPercent({ remaining: 60 })).toBe(60);
+  });
+
+  it("clamps to 0-100 and returns null when unknowable", () => {
+    expect(quotaRemainingPercent({ used: 150, total: 100 })).toBe(0);
+    expect(quotaRemainingPercent({ remainingPercentage: 130 })).toBe(100);
+    expect(quotaRemainingPercent({ used: 5, total: 0 })).toBeNull();
+    expect(quotaRemainingPercent({})).toBeNull();
+  });
+});
+
+describe("buildUsagePayload", () => {
+  const fb = { promptChars: 400, completionChars: 80 };
+
+  it("uses the server's numbers when present", () => {
+    const r = buildUsagePayload(
+      { prompt_tokens: 407, completion_tokens: 169, prompt_tokens_details: { cached_tokens: 5 } },
+      fb
+    );
+    expect(r.estimated).toBe(false);
+    expect(r.payload).toEqual({
+      prompt_tokens: 407,
+      completion_tokens: 169,
+      total_tokens: 576,
+      prompt_tokens_details: { cached_tokens: 5 },
+    });
+  });
+
+  it("accepts input_tokens/output_tokens naming", () => {
+    const r = buildUsagePayload({ input_tokens: 10, output_tokens: 4 }, fb);
+    expect(r.payload.total_tokens).toBe(14);
+    expect(r.estimated).toBe(false);
+  });
+
+  it("falls back to ~4 chars/token and flags it as estimated", () => {
+    const r = buildUsagePayload(null, fb);
+    expect(r.estimated).toBe(true);
+    expect(r.payload).toMatchObject({ prompt_tokens: 100, completion_tokens: 20, total_tokens: 120 });
   });
 });
