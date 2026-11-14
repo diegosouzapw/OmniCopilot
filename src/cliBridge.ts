@@ -71,6 +71,39 @@ export function resolveCliCommand(
   return COMMAND_WITH_ARGS.test(value) ? { ok: true, command: value } : { ok: false };
 }
 
+/** Characters that mean something to a POSIX shell, PowerShell or cmd.exe. */
+const SHELL_SYNTAX = /[\s$`"'<>|&;(){}\\]/;
+
+function hasShellSyntax(value: string): boolean {
+  return (
+    SHELL_SYNTAX.test(value) ||
+    [...value].some((char) => char.charCodeAt(0) < 0x20 || char.charCodeAt(0) === 0x7f)
+  );
+}
+
+/**
+ * The server root as passed to `--remote`: re-serialised by the WHATWG parser,
+ * without a trailing slash. Undefined when it is not an http(s) URL, or when the
+ * value or its serialisation carries whitespace, a control character or shell
+ * syntax, since it is typed into a terminal.
+ */
+export function remoteUrlArgument(root: string): string | undefined {
+  if (hasShellSyntax(root)) return undefined;
+  let url: URL;
+  try {
+    url = new URL(root);
+  } catch {
+    return undefined;
+  }
+  if (url.protocol !== "http:" && url.protocol !== "https:") return undefined;
+  const serialised = url.href.replace(/\/$/, "");
+  return hasShellSyntax(serialised) ? undefined : serialised;
+}
+
+export function isSafeRemoteUrl(root: string): boolean {
+  return remoteUrlArgument(root) !== undefined;
+}
+
 /**
  * "Configure Coding CLI" flow: pick a tool → run `omniroute setup-<tool>`
  * against the extension's configured server in the integrated terminal.
@@ -110,7 +143,17 @@ export async function configureCliTool(
 
   const args = [tool.subcommand];
   if (!isLoopbackOrigin(connection.origin)) {
-    args.push("--remote", shellQuote(root));
+    const remote = remoteUrlArgument(root);
+    if (remote === undefined) {
+      log.warn("omnicopilot.baseUrl rejected for the CLI: it contains characters that are not allowed");
+      void vscode.window.showErrorMessage(
+        vscode.l10n.t(
+          "The server URL contains characters that cannot be passed to the OmniRoute CLI. Check omnicopilot.baseUrl."
+        )
+      );
+      return;
+    }
+    args.push("--remote", shellQuote(remote));
   }
 
   const command = `${cli.command} ${args.join(" ")}`;

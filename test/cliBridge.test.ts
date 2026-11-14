@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CLI_TOOLS, resolveCliCommand } from "../src/cliBridge";
+import { CLI_TOOLS, isSafeRemoteUrl, remoteUrlArgument, resolveCliCommand } from "../src/cliBridge";
 
 const linux = { platform: "linux" as const };
 const cmdExe = { platform: "win32" as const, shellPath: "C:\\Windows\\System32\\cmd.exe" };
@@ -95,5 +95,51 @@ describe("CLI_TOOLS", () => {
   it("gives every tool a unique id and a setup-* subcommand", () => {
     expect(new Set(CLI_TOOLS.map((tool) => tool.id)).size).toBe(CLI_TOOLS.length);
     for (const tool of CLI_TOOLS) expect(tool.subcommand).toMatch(/^setup-[a-z0-9]+$/);
+  });
+});
+
+describe("isSafeRemoteUrl", () => {
+  it.each([
+    "https://omni.example",
+    "http://192.168.0.4:20128",
+    "http://[::1]:20128",
+    "http://[2001:db8::1]:8080",
+    "https://omni.example/gateway/omniroute",
+    "https://omni.example:8443/a-b_c.d~e",
+  ])("accepts %s", (root) => {
+    expect(isSafeRemoteUrl(root)).toBe(true);
+  });
+
+  it.each(["$", "`", '"', "'", "<", ">", "|", "&", ";", "(", ")", "{", "}", "\\"])(
+    "refuses a URL carrying %s",
+    (char) => {
+      expect(isSafeRemoteUrl(`https://omni.example/a${char}b`)).toBe(false);
+      expect(isSafeRemoteUrl(`https://omni.example/x?q=${char}`)).toBe(false);
+    }
+  );
+
+  it.each([" ", "\t", "\n", "\r", "\u0000", "\u001b", "\u007f"])(
+    "refuses a URL carrying whitespace or the control character %j",
+    (char) => {
+      expect(isSafeRemoteUrl(`https://omni.example/a${char}b`)).toBe(false);
+    }
+  );
+
+  it("refuses what is not an http(s) URL", () => {
+    expect(isSafeRemoteUrl("not a url")).toBe(false);
+    expect(isSafeRemoteUrl("file:///etc/passwd")).toBe(false);
+    expect(isSafeRemoteUrl("")).toBe(false);
+  });
+});
+
+describe("remoteUrlArgument", () => {
+  it("passes the re-serialised root, without a trailing slash", () => {
+    expect(remoteUrlArgument("https://Omni.Example:443")).toBe("https://omni.example");
+    expect(remoteUrlArgument("http://[::1]:20128")).toBe("http://[::1]:20128");
+    expect(remoteUrlArgument("https://omni.example/gateway")).toBe("https://omni.example/gateway");
+  });
+
+  it("gives nothing for a URL that is refused", () => {
+    expect(remoteUrlArgument("https://omni.example/$(calc)")).toBeUndefined();
   });
 });
