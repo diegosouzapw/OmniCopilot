@@ -1,9 +1,19 @@
 import { randomBytes } from "node:crypto";
 import * as vscode from "vscode";
 import { DEFAULT_BASE_URL, OmniRouteClient, serverRootUrl } from "./client";
-import { clearApiKey, rebindApiKey, resolveConnection, storeApiKey } from "./connection";
+import {
+  clearApiKey,
+  describeProbeFailure,
+  keyWithheldMessage,
+  rebindApiKey,
+  resolveConnection,
+  storeApiKey,
+} from "./connection";
+import { formatExplanation } from "./diagnostics";
 import { fetchUsage } from "./usage";
 import type { UsageView } from "./usage";
+
+const PROBE_TIMEOUT_MS = 3000;
 
 interface PanelStatus {
   type: "status";
@@ -129,16 +139,15 @@ export class OmniPanelProvider implements vscode.WebviewViewProvider {
     const apiKey = connection.apiKey;
     const client = new OmniRouteClient({ baseUrl: url, apiKey });
 
-    const online = await client.ping(3000);
+    const probe = await client.probe(PROBE_TIMEOUT_MS);
+    const online = probe.ok;
     let modelCount: number | null = null;
-    let detail: string | undefined = connection.keyWithheld
-      ? vscode.l10n.t(
-          "The stored API key was saved for {0} and is not being sent to {1}. Press Save & Test to use it here.",
-          connection.boundOrigin ?? "",
-          connection.origin
-        )
-      : undefined;
+    let detail: string | undefined = keyWithheldMessage(connection);
     let usage: UsageView | undefined;
+    if (!probe.ok) {
+      const why = formatExplanation(describeProbeFailure(url, probe, PROBE_TIMEOUT_MS));
+      detail = detail ? `${detail}\n${why}` : why;
+    }
     if (online) {
       try {
         modelCount = (await client.listModels()).length;
@@ -224,7 +233,7 @@ export class OmniPanelProvider implements vscode.WebviewViewProvider {
   .link { display: block; padding: 5px 2px; cursor: pointer; font-size: 12.5px; color: var(--vscode-textLink-foreground); }
   .link:hover { text-decoration: underline; }
   .badge { font-weight: 600; }
-  .warn { color: var(--vscode-charts-orange); font-size: 11.5px; margin-top: 8px; word-break: break-word; }
+  .warn { color: var(--vscode-charts-orange); font-size: 11.5px; margin-top: 8px; word-break: break-word; white-space: pre-line; }
   .keyhint { font-size: 11px; color: var(--vscode-descriptionForeground); margin-top: 3px; }
 </style>
 </head>

@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
-import { DEFAULT_BASE_URL, normalizeBaseUrl } from "./client";
+import { DEFAULT_BASE_URL, normalizeBaseUrl, serverRootUrl } from "./client";
+import { explainProbeFailure, type ProbeResult } from "./diagnostics";
 
 /** SecretStorage entry holding the API key. */
 export const SECRET_API_KEY = "omnicopilot.apiKey";
@@ -126,4 +127,29 @@ async function warnIfInsecure(context: vscode.ExtensionContext, origin: string):
       origin
     )
   );
+}
+
+/** The sentence that tells the user why requests leave without their key; undefined when the key is sent. */
+export function keyWithheldMessage(connection: Connection): string | undefined {
+  if (!connection.keyWithheld) return undefined;
+  return vscode.l10n.t(
+    "The stored API key was saved for {0} and is not being sent to {1}. Press Save & Test to use it here.",
+    connection.boundOrigin ?? "",
+    connection.origin
+  );
+}
+
+/** Explain a failed probe for the server at `baseUrl`, using what this VS Code window knows about itself. */
+export function describeProbeFailure(
+  baseUrl: string,
+  result: Extract<ProbeResult, { ok: false }>,
+  timeoutMs: number
+): { summary: string; hints: string[] } {
+  return explainProbeFailure(result, {
+    url: serverRootUrl(baseUrl),
+    timeoutSeconds: Math.round(timeoutMs / 1000),
+    remoteName: vscode.env.remoteName,
+    isLoopback: isLoopbackOrigin(originOf(baseUrl)),
+    t: vscode.l10n.t,
+  });
 }

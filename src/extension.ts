@@ -27,7 +27,11 @@ export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(log);
   log.info(`Activating v${context.extension.packageJSON.version}`);
 
-  statusBar = new ConnectionStatusBar(() => makeClient(context), log);
+  statusBar = new ConnectionStatusBar(
+    () => makeClient(context),
+    log,
+    () => resolveConnection(context)
+  );
   context.subscriptions.push(statusBar);
 
   provider = new OmniRouteChatProvider({
@@ -89,9 +93,10 @@ function registerCommands(context: vscode.ExtensionContext, log: vscode.LogOutpu
       );
     } else {
       void vscode.window.showWarningMessage(
-        vscode.l10n.t(
-          "OmniRoute is unreachable. Check that it is running (npx omniroute) and that omnicopilot.baseUrl points at it."
-        )
+        statusBar?.failureSummary ??
+          vscode.l10n.t(
+            "OmniRoute is unreachable. Check that it is running (npx omniroute) and that omnicopilot.baseUrl points at it."
+          )
       );
     }
   });
