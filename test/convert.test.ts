@@ -190,6 +190,100 @@ describe("tool-result content", () => {
     });
   });
 
+  describe("runs of tool results", () => {
+    const img = new vscode.LanguageModelDataPart(new Uint8Array([1, 2, 3]), "image/png");
+    const imgPart = { type: "image_url", image_url: { url: "data:image/png;base64,AQID" } };
+    const label = { type: "text", text: "Images returned by the tool call above:" };
+    const toolMsg = (id: string, text: string) => ({
+      role: "tool",
+      tool_call_id: id,
+      content: text,
+    });
+    const imageNote = "[image: image/png, 3 B; attached after this result]";
+    const roles = (out: Array<{ role: string }>) => out.map((m) => m.role);
+
+    it("emits every tool message of one message before the image follow-up", () => {
+      const out = toOpenAiMessages(
+        [
+          msg(vscode.LanguageModelChatMessageRole.User, [
+            new vscode.LanguageModelToolResultPart("A", [img]),
+            new vscode.LanguageModelToolResultPart("B", [new vscode.LanguageModelTextPart("b")]),
+          ]),
+        ],
+        { imageInput: true }
+      );
+      expect(out).toEqual([
+        toolMsg("A", imageNote),
+        toolMsg("B", "b"),
+        { role: "user", content: [label, imgPart] },
+      ]);
+    });
+
+    it("keeps tool results from consecutive messages contiguous", () => {
+      const out = toOpenAiMessages(
+        [
+          toolResultMessage("A", [img]),
+          toolResultMessage("B", [new vscode.LanguageModelTextPart("b")]),
+        ],
+        { imageInput: true }
+      );
+      expect(out).toEqual([
+        toolMsg("A", imageNote),
+        toolMsg("B", "b"),
+        { role: "user", content: [label, imgPart] },
+      ]);
+    });
+
+    it("flushes the follow-up before the next message that has no tool result", () => {
+      const out = toOpenAiMessages(
+        [
+          toolResultMessage("A", [img]),
+          toolResultMessage("B", [new vscode.LanguageModelTextPart("b")]),
+          msg(vscode.LanguageModelChatMessageRole.Assistant, [
+            new vscode.LanguageModelTextPart("done"),
+          ]),
+        ],
+        { imageInput: true }
+      );
+      expect(roles(out)).toEqual(["tool", "tool", "user", "assistant"]);
+      expect(out[2]).toEqual({ role: "user", content: [label, imgPart] });
+    });
+
+    it("uses the text the messages carried instead of the caption", () => {
+      const out = toOpenAiMessages(
+        [
+          msg(vscode.LanguageModelChatMessageRole.User, [
+            new vscode.LanguageModelToolResultPart("A", [new vscode.LanguageModelTextPart("a")]),
+            new vscode.LanguageModelTextPart("own text"),
+          ]),
+          toolResultMessage("B", [img]),
+        ],
+        { imageInput: true }
+      );
+      expect(out).toEqual([
+        toolMsg("A", "a"),
+        toolMsg("B", imageNote),
+        { role: "user", content: [{ type: "text", text: "own text" }, imgPart] },
+      ]);
+    });
+
+    it("gives each run its own follow-up", () => {
+      const out = toOpenAiMessages(
+        [
+          toolResultMessage("A", [img]),
+          msg(vscode.LanguageModelChatMessageRole.Assistant, [
+            new vscode.LanguageModelToolCallPart("C", "t", {}),
+          ]),
+          toolResultMessage("C", [img]),
+        ],
+        { imageInput: true }
+      );
+      expect(roles(out)).toEqual(["tool", "user", "assistant", "tool", "user"]);
+      expect(out[1]).toEqual({ role: "user", content: [label, imgPart] });
+      expect(out[4]).toEqual({ role: "user", content: [label, imgPart] });
+    });
+  });
+
   it("omits tool-result images from the request when the model does not accept images", () => {
     const img = new vscode.LanguageModelDataPart(new Uint8Array([1, 2, 3]), "image/png");
     const out = toOpenAiMessages([toolResultMessage("call_1", [img])]);
