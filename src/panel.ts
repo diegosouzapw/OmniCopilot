@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import { DEFAULT_BASE_URL, OmniRouteClient, serverRootUrl } from "./client";
-import { SECRET_API_KEY } from "./provider";
+import { clearApiKey, resolveConnection, storeApiKey } from "./connection";
 import { fetchUsage } from "./usage";
 import type { UsageView } from "./usage";
 
@@ -77,7 +77,7 @@ export class OmniPanelProvider implements vscode.WebviewViewProvider {
         // Empty key field = keep the stored key; the explicit Clear button removes it.
         const key = String(msg.apiKey ?? "").trim();
         if (key) {
-          await this.context.secrets.store(SECRET_API_KEY, key);
+          await storeApiKey(this.context, key);
           this.log.info("API key stored via panel");
         }
 
@@ -87,7 +87,7 @@ export class OmniPanelProvider implements vscode.WebviewViewProvider {
       }
 
       case "clearKey":
-        await this.context.secrets.delete(SECRET_API_KEY);
+        await clearApiKey(this.context);
         this.log.info("API key cleared via panel");
         await this.onSettingsSaved();
         await this.refreshStatus();
@@ -100,11 +100,10 @@ export class OmniPanelProvider implements vscode.WebviewViewProvider {
   }
 
   private async buildStatus(): Promise<PanelStatus> {
-    const url = vscode.workspace
-      .getConfiguration("omnicopilot")
-      .get<string>("baseUrl", DEFAULT_BASE_URL);
-    const apiKey = await this.context.secrets.get(SECRET_API_KEY);
-    const client = new OmniRouteClient({ baseUrl: url, apiKey: apiKey || undefined });
+    const connection = await resolveConnection(this.context);
+    const url = connection.baseUrl;
+    const apiKey = connection.apiKey;
+    const client = new OmniRouteClient({ baseUrl: url, apiKey });
 
     const online = await client.ping(3000);
     let modelCount: number | null = null;
@@ -117,7 +116,7 @@ export class OmniPanelProvider implements vscode.WebviewViewProvider {
         detail = String(err instanceof Error ? err.message : err);
       }
       try {
-        usage = await fetchUsage(url, apiKey || undefined);
+        usage = await fetchUsage(url, apiKey);
       } catch {
         // An unreachable/refused usage endpoint must not blank the status —
         // the section simply hides. `unsupported` is the same signal, kept
@@ -131,7 +130,7 @@ export class OmniPanelProvider implements vscode.WebviewViewProvider {
       online,
       url: serverRootUrl(url),
       modelCount,
-      hasKey: Boolean(apiKey),
+      hasKey: connection.hasStoredKey,
       detail,
       usage,
     };

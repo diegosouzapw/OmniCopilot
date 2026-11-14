@@ -1,8 +1,9 @@
 import * as vscode from "vscode";
-import { DEFAULT_BASE_URL, OmniRouteClient, serverRootUrl } from "./client";
+import { OmniRouteClient, serverRootUrl } from "./client";
 import { configureCliTool } from "./cliBridge";
+import { SECRET_API_KEY, clearApiKey, resolveConnection, storeApiKey } from "./connection";
 import { OmniPanelProvider } from "./panel";
-import { OmniRouteChatProvider, SECRET_API_KEY } from "./provider";
+import { OmniRouteChatProvider } from "./provider";
 import { ConnectionStatusBar } from "./statusBar";
 
 const OMNIROUTE_REPO = "https://github.com/diegosouzapw/OmniRoute";
@@ -17,9 +18,8 @@ function getConfig() {
 }
 
 async function makeClient(context: vscode.ExtensionContext): Promise<OmniRouteClient> {
-  const baseUrl = getConfig().get<string>("baseUrl", DEFAULT_BASE_URL);
-  const apiKey = await context.secrets.get(SECRET_API_KEY);
-  return new OmniRouteClient({ baseUrl, apiKey: apiKey || undefined });
+  const { baseUrl, apiKey } = await resolveConnection(context);
+  return new OmniRouteClient({ baseUrl, apiKey });
 }
 
 export function activate(context: vscode.ExtensionContext): void {
@@ -97,7 +97,7 @@ function registerCommands(context: vscode.ExtensionContext, log: vscode.LogOutpu
   });
 
   register("omnicopilot.openDashboard", async () => {
-    const root = serverRootUrl(getConfig().get<string>("baseUrl", DEFAULT_BASE_URL));
+    const root = serverRootUrl((await resolveConnection(context)).baseUrl);
     const mode = getConfig().get<string>("dashboardOpen", "external");
     if (mode === "editor") {
       // The Simple Browser is an iframe, so the server must allow framing.
@@ -237,10 +237,10 @@ async function setApiKey(
   if (key === undefined) return;
 
   if (key.trim()) {
-    await context.secrets.store(SECRET_API_KEY, key.trim());
+    await storeApiKey(context, key.trim());
     log.info("API key stored in SecretStorage");
   } else if (existing) {
-    await context.secrets.delete(SECRET_API_KEY);
+    await clearApiKey(context);
     log.info("API key cleared");
   }
   if (!optionalFlow) await provider?.refresh();
