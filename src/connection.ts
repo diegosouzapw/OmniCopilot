@@ -305,6 +305,38 @@ export async function warnIfKeyWithheld(
   }
 }
 
+/** How long the server URL must stay unchanged before a withheld key is announced.
+ * The Settings editor commits a string after a one-second pause in typing. */
+export const URL_SETTLE_MS = 1500;
+
+/**
+ * Runs `warnIfKeyWithheld` once the configuration has stopped changing for
+ * `URL_SETTLE_MS`, resolving the connection again at that moment, so only the URL
+ * the user ended on can produce the warning and its "Use the key here".
+ */
+export function createWithheldKeyWatcher(
+  context: vscode.ExtensionContext,
+  onRebound: () => Promise<void>,
+  onError: (err: unknown) => void
+): { schedule(): void; dispose(): void } {
+  const warned = new Set<string>();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const cancel = () => {
+    if (timer) clearTimeout(timer);
+    timer = undefined;
+  };
+  return {
+    schedule() {
+      cancel();
+      timer = setTimeout(() => {
+        timer = undefined;
+        warnIfKeyWithheld(context, warned, onRebound).catch(onError);
+      }, URL_SETTLE_MS);
+    },
+    dispose: cancel,
+  };
+}
+
 /** Explain a failed probe for the server at `baseUrl`, using what this VS Code window knows about itself. */
 export function describeProbeFailure(
   baseUrl: string,
