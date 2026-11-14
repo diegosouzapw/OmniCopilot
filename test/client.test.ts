@@ -316,6 +316,36 @@ describe("OmniRouteClient.streamChat errors", () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(aborted));
     await expect(collect(client())).rejects.toBe(aborted);
   });
+
+  it("keeps a tool call that arrives without an id", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        sseResponse([
+          'data: {"choices":[{"delta":{"tool_calls":[{"index":0,"function":{"name":"run","arguments":"{}"}}]}}]}',
+          'data: {"choices":[{"delta":{},"finish_reason":"tool_calls"}]}',
+          "data: [DONE]",
+        ])
+      )
+    );
+    const events = await collect(client());
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({ kind: "toolCall", name: "run", args: "{}" });
+    expect((events[0] as { id: string }).id).toMatch(/^call_[0-9a-f]{8}$/);
+  });
+
+  it("still drops a fragment that never got a name", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        sseResponse([
+          'data: {"choices":[{"delta":{"tool_calls":[{"index":0,"id":"c1","function":{"arguments":"{}"}}]}}]}',
+          "data: [DONE]",
+        ])
+      )
+    );
+    expect(await collect(client())).toEqual([]);
+  });
 });
 
 describe("normalizeBaseUrl / serverRootUrl", () => {
@@ -363,5 +393,54 @@ describe("OmniRouteClient.listModels", () => {
   it("throws with the status when the catalog call fails", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("nope", { status: 401 })));
     await expect(new OmniRouteClient({ baseUrl: "http://x" }).listModels()).rejects.toThrow("401");
+  });
+
+  it("reports a rejected catalog call as a request error with its status", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("nope", { status: 401 })));
+    const err = await new OmniRouteClient({ baseUrl: "http://x" }).listModels().catch((e) => e);
+    expect(err).toBeInstanceOf(OmniRouteRequestError);
+    expect(err.info).toEqual({ status: 401 });
+  });
+
+  it("marks an unreachable server as a network error", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockRejectedValue(new TypeError("fetch failed", { cause: new Error("ECONNREFUSED") }))
+    );
+    const err = await new OmniRouteClient({ baseUrl: "http://x" }).listModels().catch((e) => e);
+    expect(err).toBeInstanceOf(OmniRouteRequestError);
+    expect(err.info).toEqual({ network: true });
+  });
+
+  it("gives up by itself after 15 seconds and calls that a network error", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(
+          (_url: string, init: RequestInit) =>
+            new Promise((_resolve, reject) => {
+              init.signal?.addEventListener("abort", () =>
+                reject(new DOMException("This operation was aborted", "AbortError"))
+              );
+            })
+        )
+      );
+      const pending = new OmniRouteClient({ baseUrl: "http://x" })
+        .listModels()
+        .catch((e) => e as OmniRouteRequestError);
+      await vi.advanceTimersByTimeAsync(14_999);
+      let settled = false;
+      void pending.then(() => (settled = true));
+      await vi.advanceTimersByTimeAsync(0);
+      expect(settled).toBe(false);
+      await vi.advanceTimersByTimeAsync(1);
+      const err = await pending;
+      expect(err).toBeInstanceOf(OmniRouteRequestError);
+      expect(err.info).toEqual({ network: true });
+      expect(err.message).toContain("15");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
