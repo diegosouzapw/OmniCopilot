@@ -139,6 +139,27 @@ describe("OmniRouteClient.streamChat", () => {
     );
   });
 
+  it("cancels the body of an attempt that ends on an in-stream error", async () => {
+    const cancel = vi.fn();
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        // The server sends the error and keeps the connection open.
+        controller.enqueue(
+          new TextEncoder().encode('data: {"error":{"message":"rate limited"}}\n')
+        );
+      },
+      cancel,
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(new Response(body, { status: 200 }))
+    );
+    await expect(collect(new OmniRouteClient({ baseUrl: "http://x/v1" }))).rejects.toThrow(
+      "rate limited"
+    );
+    expect(cancel).toHaveBeenCalledTimes(1);
+  });
+
   it("ignores malformed keep-alive lines", async () => {
     vi.stubGlobal(
       "fetch",

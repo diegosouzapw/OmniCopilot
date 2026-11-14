@@ -215,6 +215,11 @@ export class OmniRouteClient {
       // without an explicit finish_reason line.
       yield* assembler.flush();
     } finally {
+      // Free the connection of an attempt that ended before the body was
+      // fully read (an error inside the stream, a consumer that stopped), so
+      // its socket does not linger while a retry runs. Cancelling a stream
+      // that already finished is a no-op.
+      await reader.cancel().catch(() => undefined);
       reader.releaseLock();
     }
   }
