@@ -28,6 +28,13 @@ export const CLI_TOOLS: CliTool[] = [
 
 const TERMINAL_NAME = "OmniRoute Setup";
 
+/** `omnicopilot.cliPath` is typed into a shell, so it may only hold path and
+ * launcher characters (letters, digits, `_@%+=:,./\\ ~-`) — no quotes, no shell
+ * operators, no substitution, no line breaks. */
+export function isSafeCliPath(cliPath: string): boolean {
+  return /^[\w@%+=:,./\\ ~-]+$/.test(cliPath);
+}
+
 function shellQuote(value: string): string {
   if (process.platform === "win32") {
     return `"${value.replace(/"/g, '\\"')}"`;
@@ -53,6 +60,16 @@ export async function configureCliTool(
 
   const cfg = vscode.workspace.getConfiguration("omnicopilot");
   const cliPath = cfg.get<string>("cliPath", "omniroute").trim() || "omniroute";
+  if (!isSafeCliPath(cliPath)) {
+    log.warn("omnicopilot.cliPath rejected: it contains characters that are not allowed");
+    void vscode.window.showErrorMessage(
+      vscode.l10n.t(
+        "omnicopilot.cliPath contains characters that are not allowed in a command. Set it to the path of the OmniRoute CLI."
+      )
+    );
+    return;
+  }
+
   const connection = await resolveConnection(context);
   const root = serverRootUrl(connection.baseUrl);
   // A key withheld for this origin is not handed to the terminal either.

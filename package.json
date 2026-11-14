@@ -154,6 +154,7 @@
         "omnicopilot.baseUrl": {
           "type": "string",
           "default": "http://localhost:20128",
+          "scope": "machine",
           "order": 1,
           "description": "%cfg.baseUrl%"
         },
@@ -232,6 +233,7 @@
         "omnicopilot.cliPath": {
           "type": "string",
           "default": "omniroute",
+          "scope": "machine",
           "order": 9,
           "description": "%cfg.cliPath%"
         },

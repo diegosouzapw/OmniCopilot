@@ -1,6 +1,7 @@
+import { randomBytes } from "node:crypto";
 import * as vscode from "vscode";
 import { DEFAULT_BASE_URL, OmniRouteClient, serverRootUrl } from "./client";
-import { clearApiKey, resolveConnection, storeApiKey } from "./connection";
+import { clearApiKey, rebindApiKey, resolveConnection, storeApiKey } from "./connection";
 import { fetchUsage } from "./usage";
 import type { UsageView } from "./usage";
 
@@ -13,6 +14,21 @@ interface PanelStatus {
   detail?: string;
   /** OmniCopilot #8 — the key's own spend. Omitted (not null) when offline. */
   usage?: UsageView;
+}
+
+/** The only commands the webview may ask the extension host to run — exactly
+ * the links the panel renders. Anything else a message names is ignored. */
+const ALLOWED_PANEL_COMMANDS: ReadonlySet<string> = new Set([
+  "omnicopilot.refreshModels",
+  "omnicopilot.openDashboard",
+  "omnicopilot.configureCliTool",
+  "omnicopilot.installOmniRoute",
+  "omnicopilot.openGitHub",
+  "omnicopilot.openSettings",
+]);
+
+export function isAllowedPanelCommand(command: unknown): command is string {
+  return typeof command === "string" && ALLOWED_PANEL_COMMANDS.has(command);
 }
 
 /** Sidebar webview: connection status, server URL and API key form,
@@ -75,10 +91,14 @@ export class OmniPanelProvider implements vscode.WebviewViewProvider {
           .update("baseUrl", url, vscode.ConfigurationTarget.Global);
 
         // Empty key field = keep the stored key; the explicit Clear button removes it.
+        // Saving is the user confirming this URL in our own UI, so it is also
+        // the one place a stored key is rebound to a changed origin.
         const key = String(msg.apiKey ?? "").trim();
         if (key) {
           await storeApiKey(this.context, key);
           this.log.info("API key stored via panel");
+        } else {
+          await rebindApiKey(this.context);
         }
 
         await this.onSettingsSaved();
@@ -94,7 +114,11 @@ export class OmniPanelProvider implements vscode.WebviewViewProvider {
         break;
 
       case "action":
-        await vscode.commands.executeCommand(String(msg.command));
+        if (isAllowedPanelCommand(msg.command)) {
+          await vscode.commands.executeCommand(msg.command);
+        } else {
+          this.log.warn(`Ignored a panel action that is not allowed: ${JSON.stringify(msg.command)}`);
+        }
         break;
     }
   }
@@ -107,13 +131,20 @@ export class OmniPanelProvider implements vscode.WebviewViewProvider {
 
     const online = await client.ping(3000);
     let modelCount: number | null = null;
-    let detail: string | undefined;
+    let detail: string | undefined = connection.keyWithheld
+      ? vscode.l10n.t(
+          "The stored API key was saved for {0} and is not being sent to {1}. Press Save & Test to use it here.",
+          connection.boundOrigin ?? "",
+          connection.origin
+        )
+      : undefined;
     let usage: UsageView | undefined;
     if (online) {
       try {
         modelCount = (await client.listModels()).length;
       } catch (err) {
-        detail = String(err instanceof Error ? err.message : err);
+        const failure = String(err instanceof Error ? err.message : err);
+        detail = detail ? `${detail} ${failure}` : failure;
       }
       try {
         usage = await fetchUsage(url, apiKey);
@@ -137,7 +168,7 @@ export class OmniPanelProvider implements vscode.WebviewViewProvider {
   }
 
   private html(): string {
-    const nonce = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+    const nonce = randomBytes(16).toString("base64");
     const csp = `default-src 'none'; style-src 'unsafe-inline'; script-src 'nonce-${nonce}';`;
     const t = vscode.l10n.t;
     const S = {
