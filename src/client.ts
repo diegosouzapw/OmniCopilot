@@ -1,9 +1,11 @@
 import { isFramingAllowed } from "./embed";
+import { parseRetryAfter, retryDelayFromMessage } from "./retry";
 import type {
   ChatRequest,
   ModelsResponse,
   OmniRouteModel,
   StreamChunk,
+  StreamErrorBody,
   StreamEvent,
   StreamToolCallDelta,
 } from "./types";
@@ -14,6 +16,27 @@ export interface ClientOptions {
 }
 
 const USER_AGENT = "OmniCopilot-VSCode";
+
+export interface RequestErrorInfo {
+  /** HTTP status, from the response or from an error reported inside the stream. */
+  status?: number;
+  /** How long the server asked the caller to wait before trying again. */
+  retryAfterMs?: number;
+  /** The server could not be reached at all (no HTTP answer). */
+  network?: boolean;
+}
+
+/** A request the server rejected or could not be reached for. `info` is what
+ * the retry logic and the connection indicator need; the message is for people. */
+export class OmniRouteRequestError extends Error {
+  constructor(
+    message: string,
+    readonly info: RequestErrorInfo,
+    cause?: unknown
+  ) {
+    super(message, cause === undefined ? undefined : { cause });
+  }
+}
 
 /** Server root the user configures — the `/v1` suffix is an implementation
  * detail this client appends, so it never leaks into settings or the UI. */
@@ -109,16 +132,30 @@ export class OmniRouteClient {
 
   /** POST /chat/completions with stream:true, yielding normalized events. */
   async *streamChat(request: ChatRequest, signal: AbortSignal): AsyncGenerator<StreamEvent> {
-    const res = await fetch(`${this.baseUrl}/chat/completions`, {
-      method: "POST",
-      headers: headers(this.opts.apiKey, true),
-      body: JSON.stringify(request),
-      signal,
-    });
+    let res: Response;
+    try {
+      res = await fetch(`${this.baseUrl}/chat/completions`, {
+        method: "POST",
+        headers: headers(this.opts.apiKey, true),
+        body: JSON.stringify(request),
+        signal,
+      });
+    } catch (err) {
+      // A cancelled request keeps propagating as an abort; anything else means
+      // the server could not be reached.
+      if (signal.aborted || (err as { name?: string } | null)?.name === "AbortError") throw err;
+      throw networkError(err);
+    }
 
     if (!res.ok || !res.body) {
-      const detail = await safeErrorDetail(res);
-      throw new Error(`OmniRoute request failed (HTTP ${res.status})${detail ? `: ${detail}` : ""}`);
+      const { detail, retryAfterMs } = await readErrorBody(res);
+      throw new OmniRouteRequestError(
+        `OmniRoute request failed (HTTP ${res.status})${detail ? `: ${detail}` : ""}`,
+        {
+          status: res.status,
+          retryAfterMs: parseRetryAfter(res.headers.get("retry-after")) ?? retryAfterMs,
+        }
+      );
     }
 
     const assembler = new ToolCallAssembler();
@@ -163,7 +200,7 @@ export class OmniRouteClient {
     }
 
     if (chunk.error?.message) {
-      throw new Error(chunk.error.message);
+      throw streamError(chunk.error, chunk.error.message);
     }
 
     if (chunk.usage && typeof chunk.usage === "object") {
@@ -210,12 +247,75 @@ class ToolCallAssembler {
   }
 }
 
-async function safeErrorDetail(res: Response): Promise<string> {
+/** Error message and retry hint from the JSON body of a rejected request. */
+async function readErrorBody(res: Response): Promise<{ detail: string; retryAfterMs?: number }> {
   try {
     const text = await res.text();
-    const parsed = JSON.parse(text) as { error?: { message?: string } };
-    return parsed.error?.message ?? text.slice(0, 200);
+    const { error } = JSON.parse(text) as { error?: StreamErrorBody };
+    return {
+      detail: error?.message ?? text.slice(0, 200),
+      retryAfterMs: error && typeof error === "object" ? retryHint(error) : undefined,
+    };
   } catch {
-    return "";
+    return { detail: "" };
   }
+}
+
+/** Wait the server asks for in an error object: OmniRoute's `reset_seconds`,
+ * the generic `retry_after_seconds`, or an ISO `retry_after` timestamp. */
+function retryHint(error: StreamErrorBody): number | undefined {
+  return (
+    secondsToMs(error.reset_seconds) ??
+    secondsToMs(error.retry_after_seconds) ??
+    (typeof error.retry_after === "string" ? parseRetryAfter(error.retry_after) : undefined)
+  );
+}
+
+function secondsToMs(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0
+    ? Math.round(value * 1000)
+    : undefined;
+}
+
+/** An HTTP-looking status: a number, or digits in a string. A symbolic code
+ * such as `model_cooldown` is not one. */
+function asStatus(value: unknown): number | undefined {
+  const n = typeof value === "string" && /^\d{3}$/.test(value) ? Number(value) : value;
+  return typeof n === "number" && Number.isInteger(n) && n >= 100 && n <= 599 ? n : undefined;
+}
+
+/** An error the server reported inside an otherwise healthy 200 stream. Its
+ * HTTP-style status comes from the error object, else from the first `[503]`
+ * in the message; the retry hint from the object, else from `(reset after 24s)`. */
+function streamError(error: StreamErrorBody, message: string): OmniRouteRequestError {
+  const inMessage = /\[(\d{3})\]/.exec(message);
+  return new OmniRouteRequestError(message, {
+    status:
+      asStatus(error.status) ??
+      asStatus(error.status_code) ??
+      asStatus(error.code) ??
+      (inMessage ? Number(inMessage[1]) : undefined),
+    retryAfterMs: retryHint(error) ?? retryDelayFromMessage(message),
+  });
+}
+
+/** `fetch` rejected without an HTTP answer. Node reports `TypeError: fetch
+ * failed` and keeps the real reason (ECONNREFUSED, ENOTFOUND…) in `cause`. */
+function networkError(err: unknown): OmniRouteRequestError {
+  const reason = errorText(err);
+  const cause = err instanceof Error ? errorText(err.cause) : "";
+  const detail = [reason, cause].filter(Boolean).join(": ");
+  return new OmniRouteRequestError(
+    `OmniRoute request failed (network error)${detail ? `: ${detail}` : ""}`,
+    { network: true },
+    err
+  );
+}
+
+function errorText(err: unknown): string {
+  if (err instanceof AggregateError && err.errors.length > 0 && !err.message) {
+    return errorText(err.errors[0]);
+  }
+  if (err instanceof Error) return err.message || (err as NodeJS.ErrnoException).code || "";
+  return "";
 }

@@ -44,22 +44,34 @@ function fakeContext() {
 type Reported = vscode.LanguageModelResponsePart;
 
 /** A provider wired to a fake extension context, with the global `fetch`
- * stubbed by the test. `reported` collects everything sent to `progress.report`. */
+ * stubbed by the test. `reported` collects everything sent to `progress.report`;
+ * `activity` collects every connection signal; `cancel()` fires the token. */
 function makeProvider(overrides: { config?: Record<string, unknown> } = {}) {
   setMockConfig({ baseUrl: "http://gateway.test/v1", ...overrides.config });
   const reported: Reported[] = [];
+  const activity: boolean[] = [];
   const log = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() };
   const context = fakeContext();
   const provider = new OmniRouteChatProvider({
     context: context as unknown as vscode.ExtensionContext,
     log: log as unknown as vscode.LogOutputChannel,
+    onActivity: (ok) => void activity.push(ok),
   });
   const progress: vscode.Progress<Reported> = { report: (part) => void reported.push(part) };
-  const token = {
+  const listeners = new Set<() => void>();
+  const state = {
     isCancellationRequested: false,
-    onCancellationRequested: () => ({ dispose() {} }),
-  } as unknown as vscode.CancellationToken;
-  return { provider, context, reported, log, progress, token };
+    onCancellationRequested: (listener: () => void) => {
+      listeners.add(listener);
+      return { dispose: () => void listeners.delete(listener) };
+    },
+  };
+  const token = state as unknown as vscode.CancellationToken;
+  const cancel = () => {
+    state.isCancellationRequested = true;
+    for (const listener of [...listeners]) listener();
+  };
+  return { provider, context, reported, activity, log, progress, token, cancel };
 }
 
 function modelInfo(imageInput: boolean) {
@@ -378,6 +390,212 @@ describe("provider effort picker", () => {
     const { provider, progress, token } = await list();
     const body = await chat(provider, progress, token, {});
     expect(body.reasoning_effort).toBeUndefined();
+  });
+});
+
+describe("provider request retries", () => {
+  let fetchMock: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  const userMessage = {
+    role: vscode.LanguageModelChatMessageRole.User,
+    content: [new vscode.LanguageModelTextPart("go")],
+  } as never;
+
+  function ask(ctx: ReturnType<typeof makeProvider>): Promise<unknown> {
+    // Attach the handler right away so a rejection is never left unhandled
+    // while the fake clock is being advanced.
+    return ctx.provider
+      .provideLanguageModelChatResponse(
+        modelInfo(false),
+        [userMessage],
+        { tools: [], toolMode: 1 } as never,
+        ctx.progress,
+        ctx.token
+      )
+      .then(
+        () => ({ ok: true }),
+        (error: Error) => ({ ok: false, error })
+      );
+  }
+
+  const cooling = (retryAfter: string) =>
+    new Response(
+      JSON.stringify({
+        error: { message: "All credentials for model m are cooling down", reset_seconds: 1 },
+      }),
+      { status: 429, headers: { "Retry-After": retryAfter } }
+    );
+  const status = (code: number) =>
+    new Response(JSON.stringify({ error: { message: `upstream ${code}` } }), { status: code });
+  const text = (value: string) => ({ choices: [{ delta: { content: value } }] });
+  const dataParts = (reported: Reported[]) =>
+    reported.filter((part) => part instanceof vscode.LanguageModelDataPart);
+
+  it("retries a cooling-down model on its own and reports the answer once", async () => {
+    fetchMock
+      .mockResolvedValueOnce(cooling("1"))
+      .mockResolvedValueOnce(
+        sseResponse([
+          text("hello"),
+          { choices: [], usage: { prompt_tokens: 5, completion_tokens: 2, total_tokens: 7 } },
+        ])
+      );
+    const ctx = makeProvider();
+    const result = ask(ctx);
+
+    await vi.advanceTimersByTimeAsync(999);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(1);
+
+    expect(await result).toEqual({ ok: true });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const texts = ctx.reported.filter((p) => p instanceof vscode.LanguageModelTextPart);
+    expect(texts).toHaveLength(1);
+    expect(dataParts(ctx.reported)).toHaveLength(1);
+    expect(ctx.reported[ctx.reported.length - 1]).toBeInstanceOf(vscode.LanguageModelDataPart);
+    expect(ctx.log.warn).toHaveBeenCalledTimes(1);
+    expect(String(ctx.log.warn.mock.calls[0][0])).toMatch(/retry/i);
+  });
+
+  it("waits for the reset hint of an error that arrives inside the stream", async () => {
+    fetchMock
+      .mockResolvedValueOnce(
+        sseResponse([{ error: { message: "[x/y] [503]: busy (reset after 2s)" } }])
+      )
+      .mockResolvedValueOnce(sseResponse([text("back")]));
+    const ctx = makeProvider();
+    const result = ask(ctx);
+
+    await vi.advanceTimersByTimeAsync(1_999);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(1);
+
+    expect(await result).toEqual({ ok: true });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not let a usage chunk from a failed attempt count as streamed output", async () => {
+    fetchMock
+      .mockResolvedValueOnce(
+        sseResponse([
+          { choices: [], usage: { prompt_tokens: 9, completion_tokens: 9, total_tokens: 18 } },
+          { error: { message: "[503]: busy (reset after 1s)" } },
+        ])
+      )
+      .mockResolvedValueOnce(sseResponse([text("ok")]));
+    const ctx = makeProvider();
+    const result = ask(ctx);
+    await vi.advanceTimersByTimeAsync(1_000);
+
+    expect(await result).toEqual({ ok: true });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(dataParts(ctx.reported)).toHaveLength(1);
+    // the usage part comes from the attempt that succeeded, not the failed one
+    const payload = JSON.parse(
+      new TextDecoder().decode((dataParts(ctx.reported)[0] as vscode.LanguageModelDataPart).data)
+    );
+    expect(payload.prompt_tokens).not.toBe(9);
+  });
+
+  it("does not retry once text has been streamed", async () => {
+    fetchMock.mockResolvedValue(
+      sseResponse([text("partial"), { error: { message: "[503]: busy (reset after 1s)" } }])
+    );
+    const ctx = makeProvider();
+    const result = (await ask(ctx)) as { ok: boolean; error: Error };
+
+    expect(result.ok).toBe(false);
+    expect(result.error.message).toBe("[503]: busy (reset after 1s)");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(vi.getTimerCount()).toBe(0);
+    expect(ctx.reported).toHaveLength(1);
+  });
+
+  it("does not retry once a tool call has been reported", async () => {
+    fetchMock.mockResolvedValue(
+      sseResponse([
+        {
+          choices: [
+            {
+              delta: {
+                tool_calls: [{ index: 0, id: "call_1", function: { name: "run", arguments: "{}" } }],
+              },
+              finish_reason: "tool_calls",
+            },
+          ],
+        },
+        { error: { message: "[503]: busy (reset after 1s)" } },
+      ])
+    );
+    const ctx = makeProvider();
+    const result = (await ask(ctx)) as { ok: boolean };
+
+    expect(result.ok).toBe(false);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(ctx.reported[0]).toBeInstanceOf(vscode.LanguageModelToolCallPart);
+  });
+
+  it("gives up with the server's message when the wait is longer than the cap", async () => {
+    fetchMock.mockResolvedValue(cooling("120"));
+    const ctx = makeProvider();
+    const result = (await ask(ctx)) as { ok: boolean; error: Error };
+
+    expect(result.ok).toBe(false);
+    expect(result.error.message).toBe(
+      "OmniRoute request failed (HTTP 429): All credentials for model m are cooling down"
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("marks the message of an error it retried and gave up on", async () => {
+    fetchMock.mockImplementation(async () => status(503));
+    const ctx = makeProvider();
+    const result = ask(ctx);
+    await vi.advanceTimersByTimeAsync(1_000 + 2_000);
+
+    const outcome = (await result) as { ok: boolean; error: Error };
+    expect(outcome.ok).toBe(false);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(outcome.error.message).toBe("OmniRoute request failed (HTTP 503): upstream 503 (retried 2×)");
+  });
+
+  it("never retries a client error", async () => {
+    fetchMock.mockResolvedValue(status(400));
+    const ctx = makeProvider();
+    const outcome = (await ask(ctx)) as { ok: boolean; error: Error };
+
+    expect(outcome.ok).toBe(false);
+    expect(outcome.error.message).not.toContain("retried");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("stops waiting when the request is cancelled", async () => {
+    fetchMock.mockResolvedValue(cooling("5"));
+    const ctx = makeProvider();
+    const result = ask(ctx);
+    await vi.advanceTimersByTimeAsync(10);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(vi.getTimerCount()).toBe(1);
+
+    ctx.cancel();
+
+    expect(await result).toEqual({ ok: true });
+    expect(vi.getTimerCount()).toBe(0);
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(ctx.reported).toHaveLength(0);
+    expect(ctx.activity).toEqual([]);
   });
 });
 
