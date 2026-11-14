@@ -97,7 +97,41 @@ export const l10n = {
   },
 };
 
+export class ThemeColor {
+  constructor(public id: string) {}
+}
+
+export enum StatusBarAlignment {
+  Left = 1,
+  Right = 2,
+}
+
+/** A status-bar item that only records what was set on it. */
+function createStatusBarItem() {
+  return {
+    name: "",
+    text: "",
+    tooltip: undefined as unknown,
+    command: undefined as unknown,
+    color: undefined as unknown,
+    backgroundColor: undefined as unknown,
+    visible: false,
+    show() {
+      this.visible = true;
+    },
+    hide() {
+      this.visible = false;
+    },
+    dispose() {},
+  };
+}
+
+export const env = {
+  remoteName: undefined as string | undefined,
+};
+
 export const window = {
+  createStatusBarItem: (..._args: unknown[]) => createStatusBarItem(),
   showWarningMessage: async (..._args: unknown[]): Promise<undefined> => undefined,
   showInformationMessage: async (..._args: unknown[]): Promise<undefined> => undefined,
   showErrorMessage: async (..._args: unknown[]): Promise<undefined> => undefined,
