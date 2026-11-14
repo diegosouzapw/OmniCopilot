@@ -1,3 +1,4 @@
+import { advertisedEffortTiers } from "./reasoning";
 import type { OmniRouteModel } from "./types";
 
 export interface ModelShapingConfig {
@@ -40,9 +41,7 @@ export function describeModel(model: OmniRouteModel, cfg: ModelShapingConfig): M
     Math.min(contextLength - maxOutputTokens, positive(model.max_input_tokens) ?? Infinity),
     1024
   );
-  const tiers = (model.capabilities?.effort_tiers ?? []).filter(
-    (tier): tier is string => typeof tier === "string" && tier.trim() !== ""
-  );
+  const tiers = advertisedEffortTiers(model);
 
   return {
     name: model.display_name?.trim() || model.name?.trim() || model.id,

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { describeModel } from "../src/modelInfo";
+import type { OmniRouteModel } from "../src/types";
 
 const cfg = { maxOutputTokens: 16_384, defaultContextLength: 128_000 };
 
@@ -70,6 +71,23 @@ describe("describeModel", () => {
       cfg
     );
     expect(d.effortTiers).toEqual(["low", "high", "max"]);
+  });
+
+  it.each([["high"], [{}], [null], [42]])(
+    "treats effort_tiers %j that is not an array as absent",
+    (effort_tiers) => {
+      const model = { id: "x/y", capabilities: { effort_tiers } } as unknown as OmniRouteModel;
+      expect(() => describeModel(model, cfg)).not.toThrow();
+      expect(describeModel(model, cfg).effortTiers).toBeUndefined();
+    }
+  );
+
+  it("drops non-string and empty entries from effort_tiers", () => {
+    const model = {
+      id: "x/y",
+      capabilities: { effort_tiers: ["low", 3, "", "high"] },
+    } as unknown as OmniRouteModel;
+    expect(describeModel(model, cfg).effortTiers).toEqual(["low", "high"]);
   });
 
   it("reports no tiers when none survive", () => {
