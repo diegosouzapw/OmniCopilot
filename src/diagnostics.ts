@@ -115,7 +115,7 @@ export function explainProbeFailure(
   if (ctx.remoteName) {
     hints.push(
       t(
-        "This window is connected to {0}, so the address is resolved on that machine, not on your desktop.",
+        "This window is connected to {0}, so the address is resolved on that machine, not on your own computer.",
         ctx.remoteName
       )
     );
