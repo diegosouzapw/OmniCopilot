@@ -278,7 +278,8 @@ export class OmniPanelProvider implements vscode.WebviewViewProvider {
     --omni-link: var(--vscode-textLink-foreground); --omni-focus: var(--vscode-focusBorder);
     --omni-ok: var(--vscode-charts-green); --omni-warn: var(--vscode-charts-orange); --omni-danger: var(--vscode-charts-red);
     --omni-track: var(--vscode-widget-border);
-    --omni-bar: var(--vscode-progressBar-background, var(--vscode-foreground));
+    /* widget.border and progressBar.background are both contrastBorder here: fill with the text colour. */
+    --omni-bar: var(--vscode-foreground);
   }
   body { font-family: var(--vscode-font-family); color: var(--vscode-foreground); padding: 10px 14px; }
   .brand { display: flex; align-items: center; gap: 8px; margin: 2px 0 12px; }
