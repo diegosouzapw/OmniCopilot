@@ -1,5 +1,7 @@
 <h1 align="center">OmniRoute for GitHub Copilot Chat</h1>
 
+<p align="center"><strong>Created by <a href="https://github.com/diegosouzapw">Diego Souza</a></strong></p>
+
 <p align="center">
   <img src="assets/icon.png" alt="OmniCopilot" width="128">
 </p>
