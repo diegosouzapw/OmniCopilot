@@ -7,6 +7,7 @@ import {
   resolveConnection,
   showUpgradeNoticeOnce,
   storeApiKey,
+  warnIfKeyWithheld,
 } from "./connection";
 import { OmniPanelProvider } from "./panel";
 import { OmniRouteChatProvider } from "./provider";
@@ -18,6 +19,8 @@ const VENDOR = "omniroute";
 let provider: OmniRouteChatProvider | undefined;
 let statusBar: ConnectionStatusBar | undefined;
 let panel: OmniPanelProvider | undefined;
+/** Origins this session already warned about a withheld API key. */
+const withheldKeyWarned = new Set<string>();
 
 function getConfig() {
   return vscode.workspace.getConfiguration("omnicopilot");
@@ -70,6 +73,11 @@ export function activate(context: vscode.ExtensionContext): void {
       statusBar?.restart();
       void provider?.refresh();
       void panel?.refreshStatus();
+      void warnIfKeyWithheld(context, withheldKeyWarned, async () => {
+        statusBar?.restart();
+        await provider?.refresh();
+        await panel?.refreshStatus();
+      }).catch((err: unknown) => log.warn(`Withheld-key check failed: ${String(err)}`));
     })
   );
 

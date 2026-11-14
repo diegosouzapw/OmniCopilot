@@ -180,9 +180,16 @@ export async function showUpgradeNoticeOnce(context: vscode.ExtensionContext): P
   if (pick === openPanel) void vscode.commands.executeCommand("omnicopilot.manage");
 }
 
-/** Store a new key, approved for the origin currently configured only. */
-export async function storeApiKey(context: vscode.ExtensionContext, key: string): Promise<void> {
-  const origin = originOf(configuredBaseUrl());
+/**
+ * Store a new key, approved for one origin only: that of `baseUrl` when given (the
+ * URL the user is saving in the panel), else the one currently configured.
+ */
+export async function storeApiKey(
+  context: vscode.ExtensionContext,
+  key: string,
+  baseUrl?: string
+): Promise<void> {
+  const origin = originOf(baseUrl ?? configuredBaseUrl());
   // The list first: in between, the old key is approved for fewer origins, never
   // the new key for the old key's origins, and never a key without a list.
   await writeApprovedOrigins(context, [origin]);
@@ -190,10 +197,16 @@ export async function storeApiKey(context: vscode.ExtensionContext, key: string)
   await warnIfInsecure(context, origin);
 }
 
-/** Explicit user action: also send the stored key to the origin currently configured. */
-export async function rebindApiKey(context: vscode.ExtensionContext): Promise<void> {
+/**
+ * Explicit user action: also send the stored key to the origin of `baseUrl` when
+ * given (the URL the user is saving in the panel), else to the one configured.
+ */
+export async function rebindApiKey(
+  context: vscode.ExtensionContext,
+  baseUrl?: string
+): Promise<void> {
   if (!(await context.secrets.get(SECRET_API_KEY))) return;
-  const origin = originOf(configuredBaseUrl());
+  const origin = originOf(baseUrl ?? configuredBaseUrl());
   const approved = (await readApprovedOrigins(context)) ?? [];
   const next = [...approved.filter((item) => item !== origin), origin].slice(-MAX_APPROVED_ORIGINS);
   await writeApprovedOrigins(context, next);
@@ -228,6 +241,39 @@ export function keyWithheldMessage(connection: Connection): string | undefined {
     connection.approvedOrigins.at(-1) ?? "",
     connection.origin
   );
+}
+
+/**
+ * After a configuration change: when the stored key is now withheld, say so once
+ * per origin (`warned` is the caller's in-memory record) and offer to approve
+ * the new server. `onRebound` refreshes whatever depends on the key.
+ */
+export async function warnIfKeyWithheld(
+  context: vscode.ExtensionContext,
+  warned: Set<string>,
+  onRebound: () => Promise<void>
+): Promise<void> {
+  const connection = await resolveConnection(context);
+  if (!connection.keyWithheld || warned.has(connection.origin)) return;
+  warned.add(connection.origin);
+  const useHere = vscode.l10n.t("Use the key here");
+  const openPanel = vscode.l10n.t("Open panel");
+  const pick = await vscode.window.showWarningMessage(
+    vscode.l10n.t(
+      "The OmniRoute server URL is now {0}. The stored API key was saved for {1} and is not being sent to the new server.",
+      serverRootUrl(connection.baseUrl),
+      connection.approvedOrigins.at(-1) ?? ""
+    ),
+    useHere,
+    openPanel
+  );
+  if (pick === useHere) {
+    // Approve the server the warning named, even if the setting moved again meanwhile.
+    await rebindApiKey(context, connection.baseUrl);
+    await onRebound();
+  } else if (pick === openPanel) {
+    void vscode.commands.executeCommand("omnicopilot.manage");
+  }
 }
 
 /** Explain a failed probe for the server at `baseUrl`, using what this VS Code window knows about itself. */

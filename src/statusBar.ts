@@ -41,6 +41,36 @@ export function shouldRefreshModels(args: {
   );
 }
 
+/**
+ * Icon and theme colours of the status-bar item. An online server that does not
+ * get the stored key (withheld for another origin) is not shown as green: the
+ * probe succeeds without a key, but chat and the model list would be refused.
+ */
+export function statusPresentation(args: { status: Status; keyWithheld: boolean }): {
+  text: string;
+  color: string | undefined;
+  background: string | undefined;
+} {
+  switch (args.status) {
+    case "online":
+      return args.keyWithheld
+        ? {
+            text: "$(warning) OmniRoute",
+            color: undefined,
+            background: "statusBarItem.warningBackground",
+          }
+        : { text: "$(circle-filled) OmniRoute", color: "testing.iconPassed", background: undefined };
+    case "offline":
+      return {
+        text: "$(circle-outline) OmniRoute",
+        color: undefined,
+        background: "statusBarItem.warningBackground",
+      };
+    default:
+      return { text: "$(sync~spin) OmniRoute", color: undefined, background: undefined };
+  }
+}
+
 /** Status-bar "dot": green when the OmniRoute server answers the HEAD
  * /v1/models probe, red when it does not. Click → quick actions menu. */
 export class ConnectionStatusBar implements vscode.Disposable {
@@ -50,6 +80,7 @@ export class ConnectionStatusBar implements vscode.Disposable {
   private disposed = false;
   private lastFailure: string | undefined;
   private keyNote: string | undefined;
+  private keyWithheld = false;
 
   constructor(
     private readonly getClient: () => Promise<OmniRouteClient>,
@@ -86,6 +117,7 @@ export class ConnectionStatusBar implements vscode.Disposable {
     const client = await this.getClient();
     const connection = await this.getConnection?.();
     this.keyNote = connection ? keyWithheldMessage(connection) : undefined;
+    this.keyWithheld = connection?.keyWithheld ?? false;
     const result: ProbeResult = await client.probe(PROBE_TIMEOUT_MS);
     this.lastFailure = result.ok
       ? undefined
@@ -138,28 +170,23 @@ export class ConnectionStatusBar implements vscode.Disposable {
   private render(): void {
     const cfg = vscode.workspace.getConfiguration("omnicopilot");
     const root = serverRootUrl(cfg.get<string>("baseUrl", DEFAULT_BASE_URL));
+    const look = statusPresentation({ status: this.status, keyWithheld: this.keyWithheld });
+    this.item.text = look.text;
+    this.item.color = look.color ? new vscode.ThemeColor(look.color) : undefined;
+    this.item.backgroundColor = look.background ? new vscode.ThemeColor(look.background) : undefined;
     switch (this.status) {
       case "online":
-        this.item.text = "$(circle-filled) OmniRoute";
-        this.item.color = new vscode.ThemeColor("testing.iconPassed");
-        this.item.backgroundColor = undefined;
         this.item.tooltip = this.tooltip(
           vscode.l10n.t("OmniRoute online — {0}. Click for actions.", root)
         );
         break;
       case "offline":
-        this.item.text = "$(circle-outline) OmniRoute";
-        this.item.color = undefined;
-        this.item.backgroundColor = new vscode.ThemeColor("statusBarItem.warningBackground");
         this.item.tooltip = this.tooltip(
           vscode.l10n.t("OmniRoute unreachable — {0}. Click for actions.", root),
           this.lastFailure
         );
         break;
       default:
-        this.item.text = "$(sync~spin) OmniRoute";
-        this.item.color = undefined;
-        this.item.backgroundColor = undefined;
         this.item.tooltip = vscode.l10n.t("Checking OmniRoute connection…");
     }
   }
