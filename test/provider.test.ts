@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as vscode from "vscode";
 import { setMockConfig } from "./vscode.mock";
 import { OmniRouteChatProvider } from "../src/provider";
+import { aliasToolName } from "../src/toolNames";
 
 function sseResponse(chunks: unknown[]): Response {
   const lines = [...chunks.map((c) => `data: ${JSON.stringify(c)}`), "data: [DONE]"];
@@ -82,6 +83,7 @@ function requestBody(fetchMock: ReturnType<typeof vi.fn>): {
   return JSON.parse(init.body as string);
 }
 
+const long = "mcp_" + "a".repeat(40) + "_" + "b".repeat(30); // 75 characters
 
 describe("provider chat path", () => {
   let fetchMock: ReturnType<typeof vi.fn>;
@@ -91,6 +93,72 @@ describe("provider chat path", () => {
     vi.stubGlobal("fetch", fetchMock);
   });
   afterEach(() => vi.unstubAllGlobals());
+
+  it("sends aliased tool names and reports the original name back to the editor", async () => {
+    const wire = aliasToolName(long);
+    fetchMock.mockResolvedValue(
+      sseResponse([
+        {
+          choices: [
+            {
+              delta: {
+                tool_calls: [{ index: 0, id: "call_9", function: { name: wire, arguments: "{}" } }],
+              },
+            },
+          ],
+        },
+        { choices: [{ delta: {}, finish_reason: "tool_calls" }] },
+      ])
+    );
+    const { provider, reported, progress, token } = makeProvider();
+
+    await provider.provideLanguageModelChatResponse(
+      modelInfo(false),
+      [
+        {
+          role: vscode.LanguageModelChatMessageRole.User,
+          content: [new vscode.LanguageModelTextPart("go")],
+        } as never,
+      ],
+      { tools: [{ name: long, description: "d", inputSchema: {} }], toolMode: 1 } as never,
+      progress,
+      token
+    );
+
+    const body = requestBody(fetchMock);
+    expect(body.tools?.[0].function.name).toHaveLength(64);
+    expect(body.tools?.[0].function.name).toBe(wire);
+    const call = reported[0];
+    expect(call).toBeInstanceOf(vscode.LanguageModelToolCallPart);
+    expect((call as vscode.LanguageModelToolCallPart).name).toBe(long);
+  });
+
+  it("aliases names of tool calls already in the history", async () => {
+    fetchMock.mockResolvedValue(sseResponse([{ choices: [{ delta: { content: "ok" } }] }]));
+    const { provider, progress, token } = makeProvider();
+    await provider.provideLanguageModelChatResponse(
+      modelInfo(false),
+      [
+        {
+          role: vscode.LanguageModelChatMessageRole.Assistant,
+          content: [new vscode.LanguageModelToolCallPart("call_1", long, {})],
+        } as never,
+        {
+          role: vscode.LanguageModelChatMessageRole.User,
+          content: [
+            new vscode.LanguageModelToolResultPart("call_1", [new vscode.LanguageModelTextPart("done")]),
+          ],
+        } as never,
+      ],
+      { tools: [], toolMode: 1 } as never,
+      progress,
+      token
+    );
+    const messages = requestBody(fetchMock).messages as Array<{
+      tool_calls?: Array<{ function: { name: string } }>;
+    }>;
+    expect(messages[0].tool_calls?.[0].function.name).toBe(aliasToolName(long));
+  });
 
   it.each([
     [false, false],
