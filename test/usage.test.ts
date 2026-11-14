@@ -141,6 +141,50 @@ describe("toUsageView", () => {
   });
 });
 
+describe("money quotas in the panel view", () => {
+  const quotasOf = (quotas: Record<string, object>) => {
+    const view = toUsageView({
+      allowed: true,
+      personal: null,
+      provider: null,
+      providers: [{ connectionId: "c1", provider: "p", quotas }],
+    });
+    if (view.kind !== "ready") throw new Error("expected a ready view");
+    return view.providers[0]?.quotas ?? {};
+  };
+
+  it("shows a USD balance and no percentage", () => {
+    const q = quotasOf({ w: { remaining: 12.5, currency: "USD" } });
+    expect(q.w).toMatchObject({ balance: "$12.50", percentLeft: null });
+  });
+
+  it("formats other currencies as amount plus upper-cased code", () => {
+    const q = quotasOf({
+      eur: { remaining: 12.5, currency: "eur" },
+      cny: { remaining: 300, currency: "CNY" },
+      long: { remaining: 1.23456, currency: "gbp" },
+      usd: { remaining: 3, currency: "usd" },
+    });
+    expect(q.eur?.balance).toBe("12.5 EUR");
+    expect(q.cny?.balance).toBe("300 CNY");
+    expect(q.long?.balance).toBe("1.23 GBP");
+    expect(q.usd?.balance).toBe("$3.00");
+  });
+
+  it("has no balance without a currency, or without a usable remaining", () => {
+    const q = quotasOf({
+      plain: { remaining: 12.5 },
+      empty: { remaining: 12.5, currency: "" },
+      negative: { remaining: -1, currency: "USD" },
+      none: { currency: "USD" },
+    });
+    expect(q.plain?.balance).toBeNull();
+    expect(q.empty?.balance).toBeNull();
+    expect(q.negative?.balance).toBeNull();
+    expect(q.none?.balance).toBeNull();
+  });
+});
+
 describe("formatters", () => {
   it("formatUsd renders USD and em-dash for non-numbers", () => {
     expect(formatUsd(1.25)).toBe("$1.25");
@@ -187,6 +231,16 @@ describe("quotaRemainingPercent", () => {
     expect(quotaRemainingPercent({ used: -3 })).toBeNull();
     expect(quotaRemainingPercent({ remaining: -1 })).toBeNull();
     expect(quotaRemainingPercent({})).toBeNull();
+  });
+
+  it("never reads `remaining` (or a small `used`) as a percentage on a money quota", () => {
+    expect(quotaRemainingPercent({ remaining: 12.5, currency: "USD" })).toBeNull();
+    expect(quotaRemainingPercent({ remaining: 60 })).toBe(60);
+    expect(quotaRemainingPercent({ used: 3, total: 10, currency: "USD" })).toBe(70);
+    expect(quotaRemainingPercent({ used: 3, currency: "USD" })).toBeNull();
+    expect(quotaRemainingPercent({ usedPercentage: 20, remaining: 12.5, currency: "USD" })).toBe(80);
+    expect(quotaRemainingPercent({ remainingPercentage: 40, currency: "EUR" })).toBe(40);
+    expect(quotaRemainingPercent({ remaining: 12.5, currency: "" })).toBe(13); // empty currency is not money: remaining 12.5 read as a percentage
   });
 
   it("clamps to 0-100 and rounds", () => {
