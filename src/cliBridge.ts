@@ -28,18 +28,43 @@ export const CLI_TOOLS: CliTool[] = [
 
 const TERMINAL_NAME = "OmniRoute Setup";
 
-/** `omnicopilot.cliPath` is typed into a shell, so it may only hold path and
- * launcher characters (letters, digits, `_@%+=:,./\\ ~-`) — no quotes, no shell
- * operators, no substitution, no line breaks. */
-export function isSafeCliPath(cliPath: string): boolean {
-  return /^[\w@%+=:,./\\ ~-]+$/.test(cliPath);
-}
-
-function shellQuote(value: string): string {
-  if (process.platform === "win32") {
+function shellQuote(value: string, platform: NodeJS.Platform = process.platform): string {
+  if (platform === "win32") {
     return `"${value.replace(/"/g, '\\"')}"`;
   }
   return `'${value.replace(/'/g, `'\\''`)}'`;
+}
+
+const POWERSHELL = /^(pwsh|powershell)(\.exe)?$/i;
+const QUOTED_EXECUTABLE_PATH = /^[\w@%+=:,./\\ ~()-]+$/;
+const COMMAND_WITH_ARGS = /^[\w@%+=:,./\\ ~-]+$/;
+
+/**
+ * `omnicopilot.cliPath` is typed into a shell, so it is validated and, when it
+ * is a quoted executable path, quoted again for the terminal's own shell.
+ * - `"C:\\Program Files (x86)\\x.cmd"` or `'/opt/my tools/x'`: ONE executable path.
+ *   The pair of quotes is stripped; the inside may hold parentheses but no quote,
+ *   backtick, `$`, `;`, `&`, `|`, `<`, `>` or line break.
+ * - `omniroute`, `npx omniroute`: a command with optional arguments, used as
+ *   written; no parentheses and no quotes.
+ * - Anything else is refused.
+ */
+export function resolveCliCommand(
+  cliPath: string,
+  shell: { platform: NodeJS.Platform; shellPath?: string }
+): { ok: true; command: string } | { ok: false } {
+  const value = cliPath.trim();
+  const first = value[0];
+  if (value.length >= 2 && (first === '"' || first === "'") && value.endsWith(first)) {
+    const path = value.slice(1, -1);
+    if (!QUOTED_EXECUTABLE_PATH.test(path)) return { ok: false };
+    const quoted = shellQuote(path, shell.platform);
+    // PowerShell runs a quoted path only with the call operator; cmd.exe must not get it.
+    const shellName = (shell.shellPath ?? "").split(/[\\/]/).pop() ?? "";
+    const needsCallOperator = shell.platform === "win32" && POWERSHELL.test(shellName);
+    return { ok: true, command: needsCallOperator ? `& ${quoted}` : quoted };
+  }
+  return COMMAND_WITH_ARGS.test(value) ? { ok: true, command: value } : { ok: false };
 }
 
 /**
@@ -60,11 +85,15 @@ export async function configureCliTool(
 
   const cfg = vscode.workspace.getConfiguration("omnicopilot");
   const cliPath = cfg.get<string>("cliPath", "omniroute").trim() || "omniroute";
-  if (!isSafeCliPath(cliPath)) {
+  const cli = resolveCliCommand(cliPath, {
+    platform: process.platform,
+    shellPath: vscode.env.shell,
+  });
+  if (!cli.ok) {
     log.warn("omnicopilot.cliPath rejected: it contains characters that are not allowed");
     void vscode.window.showErrorMessage(
       vscode.l10n.t(
-        "omnicopilot.cliPath contains characters that are not allowed in a command. Set it to the path of the OmniRoute CLI."
+        "omnicopilot.cliPath contains characters that are not allowed in a command. Set it to the path of the OmniRoute CLI, in quotes if the path has spaces."
       )
     );
     return;
@@ -80,7 +109,7 @@ export async function configureCliTool(
     args.push("--remote", shellQuote(root));
   }
 
-  const command = `${cliPath} ${args.join(" ")}`;
+  const command = `${cli.command} ${args.join(" ")}`;
   log.info(`Running in terminal: ${command}${apiKey ? " (API key via env)" : ""}`);
 
   const existing = vscode.window.terminals.find((t) => t.name === TERMINAL_NAME);
