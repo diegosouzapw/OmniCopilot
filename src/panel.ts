@@ -249,7 +249,7 @@ export class OmniPanelProvider implements vscode.WebviewViewProvider {
     --omni-accent: #e5ac82; --omni-accent-hover: #edb78b; --omni-accent-fg: #241b15;
     --omni-link: #8f4d26; --omni-focus: #99562f;
     --omni-ok: #3c735b; --omni-warn: #8a591c; --omni-danger: #ae4340;
-    --omni-track: rgba(32,33,28,.18);
+    --omni-track: rgba(32,33,28,.18); --omni-bar: var(--omni-accent);
   }
   body.vscode-dark {
     --omni-link: #e5ac82; --omni-focus: #e5ac82;
@@ -257,11 +257,13 @@ export class OmniPanelProvider implements vscode.WebviewViewProvider {
     --omni-track: rgba(242,240,232,.18);
   }
   body.vscode-high-contrast, body.vscode-high-contrast-light {
-    --omni-accent: var(--vscode-button-background); --omni-accent-hover: var(--vscode-button-hoverBackground);
-    --omni-accent-fg: var(--vscode-button-foreground);
+    /* High-contrast themes define no button background: fall back to colours they do define. */
+    --omni-accent: var(--vscode-button-background, transparent); --omni-accent-hover: var(--vscode-button-hoverBackground);
+    --omni-accent-fg: var(--vscode-button-foreground, var(--vscode-foreground));
     --omni-link: var(--vscode-textLink-foreground); --omni-focus: var(--vscode-focusBorder);
     --omni-ok: var(--vscode-charts-green); --omni-warn: var(--vscode-charts-orange); --omni-danger: var(--vscode-charts-red);
     --omni-track: var(--vscode-widget-border);
+    --omni-bar: var(--vscode-progressBar-background, var(--vscode-foreground));
   }
   body { font-family: var(--vscode-font-family); color: var(--vscode-foreground); padding: 10px 14px; }
   .brand { display: flex; align-items: center; gap: 8px; margin: 2px 0 12px; }
@@ -279,23 +281,23 @@ export class OmniPanelProvider implements vscode.WebviewViewProvider {
     border: 1px solid var(--vscode-input-border, transparent); outline: none; }
   input:focus { border-color: var(--omni-focus); }
   .row { display: flex; gap: 6px; margin-top: 12px; }
-  button { flex: 1; padding: 5px 8px; border: none; border-radius: 3px; cursor: pointer;
+  button { flex: 1; padding: 5px 8px; border: 1px solid var(--vscode-button-border, transparent); border-radius: 3px; cursor: pointer;
     background: var(--omni-accent); color: var(--omni-accent-fg); font-size: 12px; }
   button:hover { background: var(--omni-accent-hover); }
   button.secondary { background: var(--vscode-button-secondaryBackground); color: var(--vscode-button-secondaryForeground); }
-  button.secondary:hover { background: var(--vscode-button-secondaryHoverBackground); }
+  button.secondary:hover { background: var(--vscode-button-secondaryHoverBackground, var(--vscode-button-secondaryBackground)); }
   button:focus-visible, a:focus-visible { outline: 1px solid var(--omni-focus); outline-offset: 2px; }
   .links { margin-top: 16px; border-top: 1px solid var(--vscode-widget-border, rgba(128,128,128,.25)); padding-top: 8px; }
-  button.link, button.link:hover { display: block; flex: none; width: 100%; text-align: left;
+  button.link { display: block; flex: none; width: 100%; text-align: left;
     background: transparent; border: none; border-radius: 3px; padding: 5px 2px;
     font-family: inherit; font-size: 12.5px; color: var(--omni-link); }
-  button.link:hover { text-decoration: underline; }
+  button.link:hover { background: transparent; text-decoration: underline; }
   .badge { font-weight: 600; }
   .warn { color: var(--omni-warn); font-size: 11.5px; margin-top: 8px; word-break: break-word; white-space: pre-line; }
   .keyhint { font-size: 11px; color: var(--vscode-descriptionForeground); margin-top: 3px; }
   .usage-row { margin-bottom: 8px; }
   .bar { height: 4px; margin-top: 4px; border-radius: 2px; background: var(--omni-track); overflow: hidden; }
-  .bar-fill { height: 100%; border-radius: 2px; background: var(--omni-accent); }
+  .bar-fill { height: 100%; border-radius: 2px; background: var(--omni-bar); }
   .foot { margin-top: 18px; font-size: 10.5px; line-height: 1.5; color: var(--vscode-descriptionForeground); }
   .foot a { color: var(--omni-link); text-decoration: underline; }
 </style>
