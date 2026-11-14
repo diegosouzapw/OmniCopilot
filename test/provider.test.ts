@@ -465,6 +465,7 @@ describe("provider request retries", () => {
     expect(ctx.reported[ctx.reported.length - 1]).toBeInstanceOf(vscode.LanguageModelDataPart);
     expect(ctx.log.warn).toHaveBeenCalledTimes(1);
     expect(String(ctx.log.warn.mock.calls[0][0])).toMatch(/retry/i);
+    expect(ctx.activity).toEqual([true]);
   });
 
   it("waits for the reset hint of an error that arrives inside the stream", async () => {
@@ -519,6 +520,7 @@ describe("provider request retries", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(vi.getTimerCount()).toBe(0);
     expect(ctx.reported).toHaveLength(1);
+    expect(ctx.activity).toEqual([true]);
   });
 
   it("does not retry once a tool call has been reported", async () => {
@@ -596,6 +598,40 @@ describe("provider request retries", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(ctx.reported).toHaveLength(0);
     expect(ctx.activity).toEqual([]);
+  });
+
+  it("keeps the connection marked online after an HTTP error", async () => {
+    fetchMock.mockResolvedValue(status(401));
+    const ctx = makeProvider();
+    await ask(ctx);
+    expect(ctx.activity).toEqual([true]);
+  });
+
+  it("marks the connection offline after a network error, once retries are spent", async () => {
+    fetchMock.mockRejectedValue(new TypeError("fetch failed", { cause: new Error("ECONNREFUSED") }));
+    const ctx = makeProvider();
+    const result = ask(ctx);
+    await vi.advanceTimersByTimeAsync(1_000 + 2_000);
+
+    const outcome = (await result) as { ok: boolean; error: Error };
+    expect(outcome.ok).toBe(false);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(outcome.error.message).toMatch(/ECONNREFUSED.*\(retried 2×\)$/);
+    expect(ctx.activity).toEqual([false]);
+  });
+
+  it("does not mark the server offline when model discovery is refused with a 401", async () => {
+    fetchMock.mockResolvedValue(new Response("nope", { status: 401 }));
+    const ctx = makeProvider();
+    expect(await ctx.provider.provideLanguageModelChatInformation({ silent: true }, ctx.token)).toEqual([]);
+    expect(ctx.activity).toEqual([true]);
+  });
+
+  it("marks the server offline when model discovery cannot reach it", async () => {
+    fetchMock.mockRejectedValue(new TypeError("fetch failed"));
+    const ctx = makeProvider();
+    expect(await ctx.provider.provideLanguageModelChatInformation({ silent: true }, ctx.token)).toEqual([]);
+    expect(ctx.activity).toEqual([false]);
   });
 });
 

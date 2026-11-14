@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import { expandForAgentsWindow } from "./agentsWindow";
 import { selectChatModels } from "./catalogFilter";
-import { DEFAULT_BASE_URL, OmniRouteClient } from "./client";
+import { DEFAULT_BASE_URL, OmniRouteClient, OmniRouteRequestError } from "./client";
 import { estimateTokens, toOpenAiMessages, toOpenAiTools } from "./convert";
 import { describeModel } from "./modelInfo";
 import {
@@ -76,6 +76,12 @@ function historicalToolNames(messages: readonly vscode.LanguageModelChatRequestM
   return names;
 }
 
+/** The server could not be reached at all — as opposed to answering with an
+ * HTTP error, which proves it is up. */
+function isNetworkError(err: unknown): boolean {
+  return err instanceof OmniRouteRequestError && err.info.network === true;
+}
+
 /** Sleep for `ms`; resolves true if the request was cancelled meanwhile. */
 function waitUnlessCancelled(ms: number, token: vscode.CancellationToken): Promise<boolean> {
   return new Promise<boolean>((resolve) => {
@@ -142,7 +148,8 @@ export class OmniRouteChatProvider
       this.cachedModels = await client.listModels(token);
       this.deps.onActivity?.(true);
     } catch (err) {
-      this.deps.onActivity?.(false);
+      // An HTTP error (a 401, say) means the server answered: still reachable.
+      this.deps.onActivity?.(!isNetworkError(err));
       this.deps.log.warn(`Model discovery failed: ${String(err)}`);
       if (!options.silent) {
         void this.offerConnectionHelp();
@@ -358,7 +365,8 @@ export class OmniRouteChatProvider
             ? null
             : nextRetryDelay(err, retries, Date.now() - startedAt, DEFAULT_RETRY_POLICY);
           if (delay === null) {
-            this.deps.onActivity?.(false);
+            // HTTP errors prove the server answered; only a network failure is "offline".
+            this.deps.onActivity?.(!isNetworkError(err));
             log.error(`Chat request failed: ${String(err)}`);
             if (retries > 0 && err instanceof Error) {
               err.message = vscode.l10n.t("{0} (retried {1}×)", err.message, retries);
