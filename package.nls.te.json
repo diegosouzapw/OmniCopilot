@@ -10,7 +10,7 @@
   "cmd.quickActions": "త్వరిత చర్యలు",
   "cmd.openSettings": "సెట్టింగ్‌లను తెరవండి",
   "view.connection": "కనెక్షన్",
-  "cfg.baseUrl": "OmniRoute బేస్ URL (OpenAI-అనుకూలం). దీన్ని మీ లోకల్ ఇన్‌స్టాలేషన్‌కు లేదా ఏదైనా రిమోట్ OmniRoute ఇన్‌స్టాన్స్‌కు సూచించండి.",
+  "cfg.baseUrl": "OmniRoute బేస్ URL (OpenAI-అనుకూలం). దీన్ని మీ లోకల్ ఇన్‌స్టాలేషన్‌కు లేదా ఏదైనా రిమోట్ OmniRoute ఇన్‌స్టాన్స్‌కు సూచించండి. ఇది మీ యూజర్ సెట్టింగ్‌ల నుండి (లేదా రిమోట్ మెషీన్ సెట్టింగ్‌ల నుండి) చదవబడుతుంది; వర్క్‌స్పేస్ సెట్టింగ్‌లలోని విలువ విస్మరించబడుతుంది.",
   "cfg.statusBar": "స్టేటస్ బార్‌లో OmniRoute కనెక్షన్ సూచికను చూపించండి.",
   "cfg.healthCheckIntervalSeconds": "స్టేటస్ బార్ OmniRoute సర్వర్‌ను ఎంత తరచుగా తనిఖీ చేస్తుంది (సెకన్లలో).",
   "cfg.maxOutputTokens": "ప్రతి ప్రతిస్పందనకు కేటాయించే గరిష్ఠ అవుట్‌పుట్ టోకెన్లు.",
@@ -25,7 +25,8 @@
   "cfg.defaultReasoningEffort.low": "తక్కువ",
   "cfg.defaultReasoningEffort.medium": "మధ్యస్థం",
   "cfg.defaultReasoningEffort.high": "ఎక్కువ",
-  "cfg.defaultReasoningEffort.xhigh": "అత్యధికం — మద్దతు లేని మోడళ్లలో తగ్గించబడుతుంది",
+  "cfg.defaultReasoningEffort.xhigh": "చాలా ఎక్కువ — మద్దతు లేని మోడళ్లలో తగ్గించబడుతుంది",
   "cfg.cliPath": "\"కోడింగ్ CLIని కాన్ఫిగర్ చేయండి\" ఆదేశం ఉపయోగించే OmniRoute CLI పాత్.",
-  "cfg.exposeToAgentsWindow": "ప్రయోగాత్మకం: Copilot Agents window మోడల్ పికర్‌లో కూడా OmniRoute మోడళ్లను చూపుతుంది. VS Code సెట్టింగ్ chat.agentHost.byokModels.enabled మరియు agent host రీస్టార్ట్ అవసరం; మారవచ్చే ప్రతిపాదిత VS Code API ని ఉపయోగిస్తుంది."
+  "cfg.exposeToAgentsWindow": "ప్రయోగాత్మకం: Copilot Agents window మోడల్ పికర్‌లో కూడా OmniRoute మోడళ్లను చూపుతుంది. VS Code సెట్టింగ్ chat.agentHost.byokModels.enabled మరియు agent host రీస్టార్ట్ అవసరం; మారవచ్చే ప్రతిపాదిత VS Code API ని ఉపయోగిస్తుంది.",
+  "cfg.defaultReasoningEffort.max": "గరిష్ఠం — అత్యున్నత స్థాయి. దీన్ని అందించని మోడళ్ల కోసం OmniRoute దీన్ని తగ్గిస్తుంది."
 }

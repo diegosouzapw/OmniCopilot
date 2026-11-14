@@ -10,7 +10,7 @@
   "cmd.quickActions": "빠른 작업",
   "cmd.openSettings": "설정 열기",
   "view.connection": "연결",
-  "cfg.baseUrl": "OmniRoute 기본 URL(OpenAI 호환)입니다. 로컬 설치 또는 원격 OmniRoute 인스턴스를 가리키도록 설정하세요.",
+  "cfg.baseUrl": "OmniRoute 기본 URL(OpenAI 호환)입니다. 로컬 설치 또는 원격 OmniRoute 인스턴스를 가리키도록 설정하세요. 사용자 설정(또는 원격 머신의 설정)에서 읽으며, 작업 영역 설정의 값은 무시됩니다.",
   "cfg.statusBar": "상태 표시줄에 OmniRoute 연결 표시기를 표시합니다.",
   "cfg.healthCheckIntervalSeconds": "상태 표시줄이 OmniRoute 서버를 확인하는 주기(초)입니다.",
   "cfg.maxOutputTokens": "응답당 예약되는 최대 출력 토큰 수입니다.",
@@ -25,7 +25,8 @@
   "cfg.defaultReasoningEffort.low": "낮음",
   "cfg.defaultReasoningEffort.medium": "보통",
   "cfg.defaultReasoningEffort.high": "높음",
-  "cfg.defaultReasoningEffort.xhigh": "최고 — 미지원 모델에서는 하향 조정",
+  "cfg.defaultReasoningEffort.xhigh": "매우 높음 — 미지원 모델에서는 하향 조정",
   "cfg.cliPath": "\"코딩 CLI 구성\" 명령에서 사용하는 OmniRoute CLI의 경로입니다.",
-  "cfg.exposeToAgentsWindow": "실험적: Copilot Agents 창의 모델 선택기에도 OmniRoute 모델을 표시합니다. VS Code 설정 chat.agentHost.byokModels.enabled 및 agent host 재시작이 필요하며, 변경될 수 있는 VS Code 제안 API를 사용합니다."
+  "cfg.exposeToAgentsWindow": "실험적: Copilot Agents 창의 모델 선택기에도 OmniRoute 모델을 표시합니다. VS Code 설정 chat.agentHost.byokModels.enabled 및 agent host 재시작이 필요하며, 변경될 수 있는 VS Code 제안 API를 사용합니다.",
+  "cfg.defaultReasoningEffort.max": "최대 — 최상위 단계. 지원하지 않는 모델에서는 OmniRoute가 하향 조정합니다."
 }

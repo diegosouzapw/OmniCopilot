@@ -10,7 +10,7 @@
   "cmd.quickActions": "اقدامات سریع",
   "cmd.openSettings": "باز کردن تنظیمات",
   "view.connection": "اتصال",
-  "cfg.baseUrl": "نشانی URL پایه OmniRoute (سازگار با OpenAI). آن را به نصب محلی خود یا هر نمونه راه دور OmniRoute اشاره دهید.",
+  "cfg.baseUrl": "نشانی URL پایه OmniRoute (سازگار با OpenAI). آن را به نصب محلی خود یا هر نمونه راه دور OmniRoute اشاره دهید. از تنظیمات کاربر شما (یا دستگاه راه دور) خوانده می‌شود؛ مقدار تعیین‌شده در تنظیمات یک فضای کار نادیده گرفته می‌شود.",
   "cfg.statusBar": "نمایش نشانگر اتصال OmniRoute در نوار وضعیت.",
   "cfg.healthCheckIntervalSeconds": "هر چند وقت یک‌بار نوار وضعیت سرور OmniRoute را بررسی می‌کند (ثانیه).",
   "cfg.maxOutputTokens": "حداکثر توکن‌های خروجی رزروشده برای هر پاسخ.",
@@ -25,7 +25,8 @@
   "cfg.defaultReasoningEffort.low": "کم",
   "cfg.defaultReasoningEffort.medium": "متوسط",
   "cfg.defaultReasoningEffort.high": "زیاد",
-  "cfg.defaultReasoningEffort.xhigh": "بالاترین — برای مدل‌های فاقد پشتیبانی کاهش می‌یابد",
+  "cfg.defaultReasoningEffort.xhigh": "خیلی زیاد — برای مدل‌های فاقد پشتیبانی کاهش می‌یابد",
   "cfg.cliPath": "مسیر OmniRoute CLI که فرمان \"Configure Coding CLI\" از آن استفاده می‌کند.",
-  "cfg.exposeToAgentsWindow": "آزمایشی: مدل‌های OmniRoute را در انتخاب‌گر مدل پنجرهٔ Agents در Copilot نیز نمایش می‌دهد. به تنظیم chat.agentHost.byokModels.enabled در VS Code و راه‌اندازی مجدد agent host نیاز دارد؛ از یک API پیشنهادی VS Code استفاده می‌کند که ممکن است تغییر کند."
+  "cfg.exposeToAgentsWindow": "آزمایشی: مدل‌های OmniRoute را در انتخاب‌گر مدل پنجرهٔ Agents در Copilot نیز نمایش می‌دهد. به تنظیم chat.agentHost.byokModels.enabled در VS Code و راه‌اندازی مجدد agent host نیاز دارد؛ از یک API پیشنهادی VS Code استفاده می‌کند که ممکن است تغییر کند.",
+  "cfg.defaultReasoningEffort.max": "حداکثر — بالاترین سطح. OmniRoute آن را برای مدل‌هایی که ارائه نمی‌دهند کاهش می‌دهد."
 }

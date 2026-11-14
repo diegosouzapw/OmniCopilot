@@ -10,7 +10,7 @@
   "cmd.quickActions": "Mga Mabilisang Aksyon",
   "cmd.openSettings": "Buksan ang Settings",
   "view.connection": "Koneksyon",
-  "cfg.baseUrl": "Base URL ng OmniRoute (OpenAI-compatible). Ituro ito sa iyong lokal na pag-install o sa anumang remote na OmniRoute instance.",
+  "cfg.baseUrl": "Base URL ng OmniRoute (OpenAI-compatible). Ituro ito sa iyong lokal na pag-install o sa anumang remote na OmniRoute instance. Binabasa mula sa iyong mga setting ng user (o ng remote na makina); binabalewala ang halaga sa mga setting ng workspace.",
   "cfg.statusBar": "Ipakita ang indicator ng koneksyon ng OmniRoute sa status bar.",
   "cfg.healthCheckIntervalSeconds": "Gaano kadalas sinusuri ng status bar ang OmniRoute server (segundo).",
   "cfg.maxOutputTokens": "Maximum na bilang ng output token na nakalaan bawat tugon.",
@@ -25,7 +25,8 @@
   "cfg.defaultReasoningEffort.low": "Mababa",
   "cfg.defaultReasoningEffort.medium": "Katamtaman",
   "cfg.defaultReasoningEffort.high": "Mataas",
-  "cfg.defaultReasoningEffort.xhigh": "Pinakamataas — ibinababa sa mga modelong walang suporta",
+  "cfg.defaultReasoningEffort.xhigh": "Napakataas — ibinababa sa mga modelong walang suporta",
   "cfg.cliPath": "Path patungo sa OmniRoute CLI, ginagamit ng command na \"I-configure ang Coding CLI\".",
-  "cfg.exposeToAgentsWindow": "Eksperimental: ipinapakita rin ang mga OmniRoute na modelo sa model picker ng Agents window ng Copilot. Nangangailangan ng VS Code setting na chat.agentHost.byokModels.enabled at pag-restart ng agent host; gumagamit ng proposed VS Code API na maaaring magbago."
+  "cfg.exposeToAgentsWindow": "Eksperimental: ipinapakita rin ang mga OmniRoute na modelo sa model picker ng Agents window ng Copilot. Nangangailangan ng VS Code setting na chat.agentHost.byokModels.enabled at pag-restart ng agent host; gumagamit ng proposed VS Code API na maaaring magbago.",
+  "cfg.defaultReasoningEffort.max": "Pinakamataas — ang pinakatuktok na antas. Ibinababa ito ng OmniRoute para sa mga modelong walang ganitong antas."
 }

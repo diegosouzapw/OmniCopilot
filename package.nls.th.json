@@ -10,7 +10,7 @@
   "cmd.quickActions": "การดำเนินการด่วน",
   "cmd.openSettings": "เปิดการตั้งค่า",
   "view.connection": "การเชื่อมต่อ",
-  "cfg.baseUrl": "URL หลักของ OmniRoute (เข้ากันได้กับ OpenAI) ชี้ไปที่การติดตั้งในเครื่องของคุณหรืออินสแตนซ์ OmniRoute ระยะไกลใดก็ได้",
+  "cfg.baseUrl": "URL หลักของ OmniRoute (เข้ากันได้กับ OpenAI) ชี้ไปที่การติดตั้งในเครื่องของคุณหรืออินสแตนซ์ OmniRoute ระยะไกลใดก็ได้ อ่านจากการตั้งค่าผู้ใช้ (หรือของเครื่องระยะไกล) ค่าในการตั้งค่าของพื้นที่ทำงานจะถูกละเว้น",
   "cfg.statusBar": "แสดงตัวบ่งชี้การเชื่อมต่อ OmniRoute ในแถบสถานะ",
   "cfg.healthCheckIntervalSeconds": "ความถี่ที่แถบสถานะตรวจสอบเซิร์ฟเวอร์ OmniRoute (วินาที)",
   "cfg.maxOutputTokens": "จำนวนโทเค็นเอาต์พุตสูงสุดที่สำรองไว้ต่อการตอบกลับ",
@@ -25,7 +25,8 @@
   "cfg.defaultReasoningEffort.low": "ต่ำ",
   "cfg.defaultReasoningEffort.medium": "ปานกลาง",
   "cfg.defaultReasoningEffort.high": "สูง",
-  "cfg.defaultReasoningEffort.xhigh": "สูงสุด — ลดระดับสำหรับโมเดลที่ไม่รองรับ",
+  "cfg.defaultReasoningEffort.xhigh": "สูงมาก — ลดระดับสำหรับโมเดลที่ไม่รองรับ",
   "cfg.cliPath": "พาธไปยัง OmniRoute CLI ซึ่งใช้โดยคำสั่ง \"กำหนดค่า CLI สำหรับเขียนโค้ด\"",
-  "cfg.exposeToAgentsWindow": "ทดลอง: แสดงโมเดล OmniRoute ในตัวเลือกโมเดลของหน้าต่าง Agents ของ Copilot ด้วย ต้องใช้การตั้งค่า VS Code chat.agentHost.byokModels.enabled และรีสตาร์ต agent host; ใช้ API ที่เสนอของ VS Code ซึ่งอาจเปลี่ยนแปลงได้"
+  "cfg.exposeToAgentsWindow": "ทดลอง: แสดงโมเดล OmniRoute ในตัวเลือกโมเดลของหน้าต่าง Agents ของ Copilot ด้วย ต้องใช้การตั้งค่า VS Code chat.agentHost.byokModels.enabled และรีสตาร์ต agent host; ใช้ API ที่เสนอของ VS Code ซึ่งอาจเปลี่ยนแปลงได้",
+  "cfg.defaultReasoningEffort.max": "สูงสุด — ระดับบนสุด OmniRoute จะลดระดับให้สำหรับโมเดลที่ไม่มีระดับนี้"
 }

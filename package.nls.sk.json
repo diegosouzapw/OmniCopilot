@@ -10,7 +10,7 @@
   "cmd.quickActions": "Rýchle akcie",
   "cmd.openSettings": "Otvoriť nastavenia",
   "view.connection": "Pripojenie",
-  "cfg.baseUrl": "Základná URL adresa OmniRoute (kompatibilná s OpenAI). Nasmerujte ju na lokálnu inštaláciu alebo ľubovoľnú vzdialenú inštanciu OmniRoute.",
+  "cfg.baseUrl": "Základná URL adresa OmniRoute (kompatibilná s OpenAI). Nasmerujte ju na lokálnu inštaláciu alebo ľubovoľnú vzdialenú inštanciu OmniRoute. Číta sa z používateľských nastavení (alebo vzdialeného počítača); hodnota v nastaveniach pracovného priestoru sa ignoruje.",
   "cfg.statusBar": "Zobrazovať indikátor pripojenia OmniRoute v stavovom riadku.",
   "cfg.healthCheckIntervalSeconds": "Ako často stavový riadok kontroluje server OmniRoute (v sekundách).",
   "cfg.maxOutputTokens": "Maximálny počet výstupných tokenov rezervovaných na odpoveď.",
@@ -25,7 +25,8 @@
   "cfg.defaultReasoningEffort.low": "Nízka",
   "cfg.defaultReasoningEffort.medium": "Stredná",
   "cfg.defaultReasoningEffort.high": "Vysoká",
-  "cfg.defaultReasoningEffort.xhigh": "Najvyššia — znížená pri modeloch bez podpory",
+  "cfg.defaultReasoningEffort.xhigh": "Veľmi vysoká — znížená pri modeloch bez podpory",
   "cfg.cliPath": "Cesta k CLI OmniRoute, ktorú používa príkaz „Konfigurovať kódovacie CLI“.",
-  "cfg.exposeToAgentsWindow": "Experimentálne: zobrazí modely OmniRoute aj vo výbere modelov okna Agents v Copilote. Vyžaduje nastavenie VS Code chat.agentHost.byokModels.enabled a reštart agent hostu; používa navrhované API VS Code, ktoré sa môže zmeniť."
+  "cfg.exposeToAgentsWindow": "Experimentálne: zobrazí modely OmniRoute aj vo výbere modelov okna Agents v Copilote. Vyžaduje nastavenie VS Code chat.agentHost.byokModels.enabled a reštart agent hostu; používa navrhované API VS Code, ktoré sa môže zmeniť.",
+  "cfg.defaultReasoningEffort.max": "Maximálna — najvyššia úroveň. OmniRoute ju znižuje pri modeloch, ktoré ju neponúkajú."
 }

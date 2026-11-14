@@ -10,7 +10,7 @@
   "cmd.quickActions": "Schnellaktionen",
   "cmd.openSettings": "Einstellungen öffnen",
   "view.connection": "Verbindung",
-  "cfg.baseUrl": "Basis-URL von OmniRoute (OpenAI-kompatibel). Verweisen Sie auf Ihre lokale Installation oder eine beliebige entfernte OmniRoute-Instanz.",
+  "cfg.baseUrl": "Basis-URL von OmniRoute (OpenAI-kompatibel). Verweisen Sie auf Ihre lokale Installation oder eine beliebige entfernte OmniRoute-Instanz. Wird aus Ihren Benutzereinstellungen (oder denen des entfernten Rechners) gelesen; ein Wert in den Einstellungen eines Arbeitsbereichs wird ignoriert.",
   "cfg.statusBar": "OmniRoute-Verbindungsindikator in der Statusleiste anzeigen.",
   "cfg.healthCheckIntervalSeconds": "Wie oft die Statusleiste den OmniRoute-Server prüft (in Sekunden).",
   "cfg.maxOutputTokens": "Maximale Anzahl der pro Antwort reservierten Ausgabetoken.",
@@ -25,7 +25,8 @@
   "cfg.defaultReasoningEffort.low": "Niedrig",
   "cfg.defaultReasoningEffort.medium": "Mittel",
   "cfg.defaultReasoningEffort.high": "Hoch",
-  "cfg.defaultReasoningEffort.xhigh": "Höchste — für Modelle ohne Unterstützung herabgestuft",
+  "cfg.defaultReasoningEffort.xhigh": "Sehr hoch — für Modelle ohne Unterstützung herabgestuft",
   "cfg.cliPath": "Pfad zur OmniRoute-CLI, der vom Befehl \"Configure Coding CLI\" verwendet wird.",
-  "cfg.exposeToAgentsWindow": "Experimentell: OmniRoute-Modelle zusätzlich in der Modellauswahl des Copilot-Agents-Fensters anzeigen. Erfordert die VS-Code-Einstellung chat.agentHost.byokModels.enabled und einen Neustart des Agent-Hosts; nutzt eine vorgeschlagene VS-Code-API, die sich ändern kann."
+  "cfg.exposeToAgentsWindow": "Experimentell: OmniRoute-Modelle zusätzlich in der Modellauswahl des Copilot-Agents-Fensters anzeigen. Erfordert die VS-Code-Einstellung chat.agentHost.byokModels.enabled und einen Neustart des Agent-Hosts; nutzt eine vorgeschlagene VS-Code-API, die sich ändern kann.",
+  "cfg.defaultReasoningEffort.max": "Maximal — die höchste Stufe. OmniRoute stuft sie für Modelle, die sie nicht anbieten, herab."
 }

@@ -10,7 +10,7 @@
   "cmd.quickActions": "Vitendo vya Haraka",
   "cmd.openSettings": "Fungua Mipangilio",
   "view.connection": "Muunganisho",
-  "cfg.baseUrl": "URL ya msingi ya OmniRoute (inayooana na OpenAI). Ielekeze kwenye usakinishaji wako wa ndani au kwenye seva yoyote ya mbali ya OmniRoute.",
+  "cfg.baseUrl": "URL ya msingi ya OmniRoute (inayooana na OpenAI). Ielekeze kwenye usakinishaji wako wa ndani au kwenye seva yoyote ya mbali ya OmniRoute. Husomwa kutoka mipangilio ya mtumiaji wako (au ya mashine ya mbali); thamani katika mipangilio ya eneo la kazi hupuuzwa.",
   "cfg.statusBar": "Onyesha kiashiria cha muunganisho wa OmniRoute kwenye upau wa hali.",
   "cfg.healthCheckIntervalSeconds": "Ni mara ngapi upau wa hali unakagua seva ya OmniRoute (sekunde).",
   "cfg.maxOutputTokens": "Idadi ya juu ya tokeni za matokeo zinazotengwa kwa kila jibu.",
@@ -25,7 +25,8 @@
   "cfg.defaultReasoningEffort.low": "Chini",
   "cfg.defaultReasoningEffort.medium": "Wastani",
   "cfg.defaultReasoningEffort.high": "Juu",
-  "cfg.defaultReasoningEffort.xhigh": "Juu zaidi — hupunguzwa kwa modeli zisizounga mkono",
+  "cfg.defaultReasoningEffort.xhigh": "Juu sana — hupunguzwa kwa modeli zisizounga mkono",
   "cfg.cliPath": "Njia ya CLI ya OmniRoute, inayotumiwa na amri ya \"Sanidi CLI ya Uandishi wa Msimbo\".",
-  "cfg.exposeToAgentsWindow": "Ya majaribio: huonyesha pia modeli za OmniRoute kwenye kichagua-modeli cha dirisha la Agents la Copilot. Inahitaji mpangilio wa VS Code chat.agentHost.byokModels.enabled na kuwasha upya agent host; hutumia API pendekezwa ya VS Code inayoweza kubadilika."
+  "cfg.exposeToAgentsWindow": "Ya majaribio: huonyesha pia modeli za OmniRoute kwenye kichagua-modeli cha dirisha la Agents la Copilot. Inahitaji mpangilio wa VS Code chat.agentHost.byokModels.enabled na kuwasha upya agent host; hutumia API pendekezwa ya VS Code inayoweza kubadilika.",
+  "cfg.defaultReasoningEffort.max": "Upeo — kiwango cha juu kabisa. OmniRoute huipunguza kwa modeli ambazo hazina kiwango hiki."
 }

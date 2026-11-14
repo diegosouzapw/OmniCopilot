@@ -10,7 +10,7 @@
   "cmd.quickActions": "দ্রুত অ্যাকশন",
   "cmd.openSettings": "সেটিংস খুলুন",
   "view.connection": "সংযোগ",
-  "cfg.baseUrl": "OmniRoute বেস URL (OpenAI-সামঞ্জস্যপূর্ণ)। এটিকে আপনার লোকাল ইনস্টল বা যেকোনো রিমোট OmniRoute ইনস্ট্যান্সের দিকে নির্দেশ করুন।",
+  "cfg.baseUrl": "OmniRoute বেস URL (OpenAI-সামঞ্জস্যপূর্ণ)। এটিকে আপনার লোকাল ইনস্টল বা যেকোনো রিমোট OmniRoute ইনস্ট্যান্সের দিকে নির্দেশ করুন। এটি আপনার ইউজার সেটিংস (বা রিমোট মেশিনের সেটিংস) থেকে পড়া হয়; ওয়ার্কস্পেসের সেটিংসে দেওয়া মান উপেক্ষা করা হয়।",
   "cfg.statusBar": "স্ট্যাটাস বারে OmniRoute সংযোগ নির্দেশক দেখান।",
   "cfg.healthCheckIntervalSeconds": "স্ট্যাটাস বার কত ঘন ঘন OmniRoute সার্ভার পরীক্ষা করবে (সেকেন্ডে)।",
   "cfg.maxOutputTokens": "প্রতিটি প্রতিক্রিয়ার জন্য সংরক্ষিত সর্বাধিক আউটপুট টোকেন।",
@@ -25,7 +25,8 @@
   "cfg.defaultReasoningEffort.low": "নিম্ন",
   "cfg.defaultReasoningEffort.medium": "মাঝারি",
   "cfg.defaultReasoningEffort.high": "উচ্চ",
-  "cfg.defaultReasoningEffort.xhigh": "সর্বোচ্চ — যেসব মডেলে নেই সেখানে কমিয়ে দেওয়া হয়",
+  "cfg.defaultReasoningEffort.xhigh": "অতি উচ্চ — যেসব মডেলে নেই সেখানে কমিয়ে দেওয়া হয়",
   "cfg.cliPath": "OmniRoute CLI-এর পাথ, যা \"Configure Coding CLI\" কমান্ড ব্যবহার করে।",
-  "cfg.exposeToAgentsWindow": "পরীক্ষামূলক: Copilot-এর Agents window-এর মডেল পিকারেও OmniRoute মডেল দেখায়। VS Code-এর chat.agentHost.byokModels.enabled সেটিং এবং agent host পুনরায় চালু করা প্রয়োজন; একটি প্রস্তাবিত VS Code API ব্যবহার করে যা পরিবর্তিত হতে পারে।"
+  "cfg.exposeToAgentsWindow": "পরীক্ষামূলক: Copilot-এর Agents window-এর মডেল পিকারেও OmniRoute মডেল দেখায়। VS Code-এর chat.agentHost.byokModels.enabled সেটিং এবং agent host পুনরায় চালু করা প্রয়োজন; একটি প্রস্তাবিত VS Code API ব্যবহার করে যা পরিবর্তিত হতে পারে।",
+  "cfg.defaultReasoningEffort.max": "সর্বোচ্চ — শীর্ষ স্তর। যেসব মডেলে এটি নেই, OmniRoute সেখানে এটি কমিয়ে দেয়।"
 }

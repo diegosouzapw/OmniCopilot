@@ -10,7 +10,7 @@
   "cmd.quickActions": "Sürətli əməliyyatlar",
   "cmd.openSettings": "Parametrləri aç",
   "view.connection": "Bağlantı",
-  "cfg.baseUrl": "OmniRoute baza URL-i (OpenAI ilə uyğun). Onu lokal quraşdırmanıza və ya istənilən uzaq OmniRoute instansiyasına yönəldin.",
+  "cfg.baseUrl": "OmniRoute baza URL-i (OpenAI ilə uyğun). Onu lokal quraşdırmanıza və ya istənilən uzaq OmniRoute instansiyasına yönəldin. İstifadəçi parametrlərinizdən (və ya uzaq kompüterin parametrlərindən) oxunur; iş sahəsinin parametrlərindəki dəyər nəzərə alınmır.",
   "cfg.statusBar": "Status panelində OmniRoute bağlantı indikatorunu göstər.",
   "cfg.healthCheckIntervalSeconds": "Status panelinin OmniRoute serverini nə qədər tez-tez yoxladığı (saniyə).",
   "cfg.maxOutputTokens": "Hər cavab üçün ayrılan maksimum çıxış tokenləri.",
@@ -25,7 +25,8 @@
   "cfg.defaultReasoningEffort.low": "Aşağı",
   "cfg.defaultReasoningEffort.medium": "Orta",
   "cfg.defaultReasoningEffort.high": "Yüksək",
-  "cfg.defaultReasoningEffort.xhigh": "Ən yüksək — dəstəkləməyən modellərdə aşağı salınır",
+  "cfg.defaultReasoningEffort.xhigh": "Çox yüksək — dəstəkləməyən modellərdə aşağı salınır",
   "cfg.cliPath": "\"Configure Coding CLI\" əmrinin istifadə etdiyi OmniRoute CLI-nin yolu.",
-  "cfg.exposeToAgentsWindow": "Eksperimental: OmniRoute modellərini Copilot Agents window model seçicisində də göstərir. VS Code-un chat.agentHost.byokModels.enabled parametri və agent host-un yenidən başladılması tələb olunur; dəyişə bilən təklif olunmuş VS Code API-sindən istifadə edir."
+  "cfg.exposeToAgentsWindow": "Eksperimental: OmniRoute modellərini Copilot Agents window model seçicisində də göstərir. VS Code-un chat.agentHost.byokModels.enabled parametri və agent host-un yenidən başladılması tələb olunur; dəyişə bilən təklif olunmuş VS Code API-sindən istifadə edir.",
+  "cfg.defaultReasoningEffort.max": "Maksimum — ən yüksək səviyyə. OmniRoute onu təklif etməyən modellərdə aşağı salır."
 }

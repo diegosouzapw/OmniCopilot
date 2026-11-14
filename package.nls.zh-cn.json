@@ -10,7 +10,7 @@
   "cmd.quickActions": "快速操作",
   "cmd.openSettings": "打开设置",
   "view.connection": "连接",
-  "cfg.baseUrl": "OmniRoute 基础 URL（兼容 OpenAI）。可指向本地安装或任意远程 OmniRoute 实例。",
+  "cfg.baseUrl": "OmniRoute 基础 URL（兼容 OpenAI）。可指向本地安装或任意远程 OmniRoute 实例。从你的用户设置（或远程机器的设置）中读取；工作区设置中的值会被忽略。",
   "cfg.statusBar": "在状态栏中显示 OmniRoute 连接指示器。",
   "cfg.healthCheckIntervalSeconds": "状态栏探测 OmniRoute 服务器的频率（秒）。",
   "cfg.maxOutputTokens": "每次响应预留的最大输出令牌数。",
@@ -25,7 +25,8 @@
   "cfg.defaultReasoningEffort.low": "低",
   "cfg.defaultReasoningEffort.medium": "中",
   "cfg.defaultReasoningEffort.high": "高",
-  "cfg.defaultReasoningEffort.xhigh": "最高 — 对不支持的模型自动降级",
+  "cfg.defaultReasoningEffort.xhigh": "超高 — 对不支持的模型自动降级",
   "cfg.cliPath": "OmniRoute CLI 的路径，由“配置编码 CLI”命令使用。",
-  "cfg.exposeToAgentsWindow": "实验性：同时在 Copilot Agents 窗口的模型选择器中列出 OmniRoute 模型。需要 VS Code 设置 chat.agentHost.byokModels.enabled 并重启 agent host；使用可能变更的 VS Code 提案 API。"
+  "cfg.exposeToAgentsWindow": "实验性：同时在 Copilot Agents 窗口的模型选择器中列出 OmniRoute 模型。需要 VS Code 设置 chat.agentHost.byokModels.enabled 并重启 agent host；使用可能变更的 VS Code 提案 API。",
+  "cfg.defaultReasoningEffort.max": "最大 — 最高档。对不提供该档的模型，OmniRoute 会自动降级。"
 }
