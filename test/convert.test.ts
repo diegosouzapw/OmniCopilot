@@ -4,6 +4,7 @@ import {
   estimateTokens,
   extractToolResultText,
   isEmptyContent,
+  renderToolResult,
   toOpenAiMessages,
   toOpenAiTools,
 } from "../src/convert";
@@ -132,6 +133,105 @@ describe("helpers", () => {
 
   it("estimateTokens uses chars/4 for strings", () => {
     expect(estimateTokens("abcdefgh")).toBe(2);
+  });
+});
+
+function toolResultMessage(callId: string, content: unknown[]): AnyMessage {
+  return msg(vscode.LanguageModelChatMessageRole.User, [
+    new vscode.LanguageModelToolResultPart(callId, content),
+  ]);
+}
+
+describe("tool-result content", () => {
+  it("keeps tool-result image bytes out of the prompt text", () => {
+    const img = new vscode.LanguageModelDataPart(new Uint8Array(100_000).fill(137), "image/png");
+    const { text, images } = renderToolResult([new vscode.LanguageModelTextPart("ok"), img], {
+      imageInput: false,
+    });
+    expect(text).toBe("ok[image omitted: image/png, 98 KB; this model does not accept images]");
+    expect(images).toEqual([]);
+  });
+
+  it("attaches tool-result images after the tool message when the model accepts images", () => {
+    const img = new vscode.LanguageModelDataPart(new Uint8Array([1, 2, 3]), "image/png");
+    const out = toOpenAiMessages([toolResultMessage("call_1", [img])], { imageInput: true });
+    expect(out[0]).toEqual({
+      role: "tool",
+      tool_call_id: "call_1",
+      content: "[image: image/png, 3 B; attached after this result]",
+    });
+    expect(out[1]).toEqual({
+      role: "user",
+      content: [
+        { type: "text", text: "Images returned by the tool call above:" },
+        { type: "image_url", image_url: { url: "data:image/png;base64,AQID" } },
+      ],
+    });
+    expect(out).toHaveLength(2);
+  });
+
+  it("puts collected images after the text and images the message already had", () => {
+    const img = new vscode.LanguageModelDataPart(new Uint8Array([1, 2, 3]), "image/png");
+    const out = toOpenAiMessages(
+      [
+        msg(vscode.LanguageModelChatMessageRole.User, [
+          new vscode.LanguageModelToolResultPart("call_1", [img]),
+          new vscode.LanguageModelTextPart("and now?"),
+        ]),
+      ],
+      { imageInput: true }
+    );
+    expect(out[1]).toEqual({
+      role: "user",
+      content: [
+        { type: "text", text: "and now?" },
+        { type: "image_url", image_url: { url: "data:image/png;base64,AQID" } },
+      ],
+    });
+  });
+
+  it("omits tool-result images from the request when the model does not accept images", () => {
+    const img = new vscode.LanguageModelDataPart(new Uint8Array([1, 2, 3]), "image/png");
+    const out = toOpenAiMessages([toolResultMessage("call_1", [img])]);
+    expect(out).toEqual([
+      {
+        role: "tool",
+        tool_call_id: "call_1",
+        content: "[image omitted: image/png, 3 B; this model does not accept images]",
+      },
+    ]);
+  });
+
+  it("decodes JSON and text data parts, and replaces other binary data with a placeholder", () => {
+    const enc = new TextEncoder();
+    const parts = [
+      new vscode.LanguageModelDataPart(enc.encode('{"a":1}'), "application/json"),
+      new vscode.LanguageModelDataPart(enc.encode("plain"), "text/plain"),
+      new vscode.LanguageModelDataPart(enc.encode('{"b":2}'), "application/vnd.api+json"),
+      new vscode.LanguageModelDataPart(new Uint8Array(2048), "application/pdf"),
+    ];
+    expect(renderToolResult(parts, { imageInput: false }).text).toBe(
+      '{"a":1}plain{"b":2}[binary data omitted: application/pdf, 2 KB]'
+    );
+  });
+
+  it("ignores internal marker data parts", () => {
+    const marker = new vscode.LanguageModelDataPart(new TextEncoder().encode("ephemeral"), "cache_control");
+    expect(renderToolResult([marker], { imageInput: true })).toEqual({ text: "", images: [] });
+  });
+
+  it("stringifies structured value parts instead of printing [object Object]", () => {
+    expect(renderToolResult([{ value: { a: 1 } }], { imageInput: false }).text).toBe('{"a":1}');
+    expect(renderToolResult([{ value: "s" }, "t", { other: 1 }], { imageInput: false }).text).toBe(
+      's' + 't' + '{"other":1}'
+    );
+  });
+
+  it("extractToolResultText never attaches images", () => {
+    const img = new vscode.LanguageModelDataPart(new Uint8Array([1]), "image/png");
+    expect(extractToolResultText([img])).toBe(
+      "[image omitted: image/png, 1 B; this model does not accept images]"
+    );
   });
 });
 

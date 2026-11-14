@@ -171,7 +171,7 @@ export class OmniRouteChatProvider
 
     const request: ChatRequest = {
       model: model.omniModelId,
-      messages: toOpenAiMessages(messages),
+      messages: toOpenAiMessages(messages, { imageInput: model.capabilities?.imageInput === true }),
       stream: true,
       stream_options: { include_usage: true },
       tools: toOpenAiTools(options.tools),

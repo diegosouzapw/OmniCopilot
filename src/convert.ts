@@ -8,10 +8,18 @@ import type { ChatContentPart, ChatMessage, ChatTool } from "./types";
  * message can expand into several OpenAI messages (each tool result becomes
  * its own `role: "tool"` message).
  */
+export interface ConvertOptions {
+  /** Whether the target model accepts images. Images returned by tools are
+   * attached to the request only when it does. Defaults to false. */
+  imageInput?: boolean;
+}
+
 export function toOpenAiMessages(
-  messages: readonly vscode.LanguageModelChatRequestMessage[]
+  messages: readonly vscode.LanguageModelChatRequestMessage[],
+  options: ConvertOptions = {}
 ): ChatMessage[] {
   const out: ChatMessage[] = [];
+  const imageInput = options.imageInput === true;
 
   for (const msg of messages) {
     const parts = Array.isArray(msg.content) ? msg.content : [];
@@ -21,15 +29,15 @@ export function toOpenAiMessages(
         p instanceof vscode.LanguageModelToolResultPart
     );
     if (toolResults.length > 0) {
+      const toolImages: ChatContentPart[] = [];
       for (const result of toolResults) {
-        out.push({
-          role: "tool",
-          content: extractToolResultText(result.content),
-          tool_call_id: result.callId,
-        });
+        const rendered = renderToolResult(result.content, { imageInput });
+        toolImages.push(...rendered.images);
+        out.push({ role: "tool", content: rendered.text, tool_call_id: result.callId });
       }
       const rest = toContent(parts);
-      if (!isEmptyContent(rest)) out.push({ role: "user", content: rest });
+      const followUp = withToolImages(rest, toolImages);
+      if (!isEmptyContent(followUp)) out.push({ role: "user", content: followUp });
       continue;
     }
 
@@ -67,6 +75,25 @@ export function toOpenAiMessages(
   }
 
   return out;
+}
+
+/** Message content followed by images that tools returned. Without images the
+ * content is unchanged; without other content a short caption introduces them. */
+function withToolImages(
+  content: string | ChatContentPart[],
+  images: ChatContentPart[]
+): string | ChatContentPart[] {
+  if (images.length === 0) return content;
+  const own: ChatContentPart[] =
+    typeof content === "string"
+      ? content.trim()
+        ? [{ type: "text", text: content }]
+        : []
+      : content;
+  const lead: ChatContentPart[] = isEmptyContent(own)
+    ? [{ type: "text", text: "Images returned by the tool call above:" }]
+    : own;
+  return [...lead, ...images];
 }
 
 function mapRole(role: vscode.LanguageModelChatMessageRole): "system" | "user" | "assistant" {
@@ -108,18 +135,77 @@ export function isEmptyContent(content: string | ChatContentPart[] | null): bool
   return content.every((p) => p.type === "text" && p.text.trim().length === 0);
 }
 
+function describeSize(bytes: number): string {
+  return bytes < 1024 ? `${bytes} B` : `${Math.round(bytes / 1024)} KB`;
+}
+
+function normalizeMime(mimeType: string): string {
+  return mimeType.split(";")[0].trim().toLowerCase();
+}
+
+/** Internal markers (`cache_control`, `stateful_marker`, `usage`…) have no
+ * `type/subtype` form: they steer the editor, not the model. */
+function isMarkerMime(mimeType: string): boolean {
+  return !mimeType.includes("/");
+}
+
+function isImageMime(mimeType: string): boolean {
+  return normalizeMime(mimeType).startsWith("image/");
+}
+
+function isReadableMime(mimeType: string): boolean {
+  const mime = normalizeMime(mimeType);
+  return mime.startsWith("text/") || mime === "application/json" || mime.endsWith("+json");
+}
+
+function stringify(value: unknown): string {
+  return JSON.stringify(value) ?? "";
+}
+
+/**
+ * Render the content of a tool result as prompt text, never as raw bytes.
+ * Images are attached (returned in `images`) only when the model accepts them;
+ * otherwise a placeholder says they were left out.
+ */
+export function renderToolResult(
+  content: unknown,
+  options: { imageInput: boolean }
+): { text: string; images: ChatContentPart[] } {
+  const images: ChatContentPart[] = [];
+  const parts = Array.isArray(content) ? content : content === undefined || content === null ? [] : [content];
+
+  const text = parts
+    .map((part) => {
+      if (typeof part === "string") return part;
+      if (part instanceof vscode.LanguageModelDataPart && typeof part.mimeType === "string") {
+        if (isMarkerMime(part.mimeType)) return "";
+        const size = describeSize(part.data.byteLength);
+        if (isImageMime(part.mimeType)) {
+          if (!options.imageInput) {
+            return `[image omitted: ${part.mimeType}, ${size}; this model does not accept images]`;
+          }
+          const base64 = Buffer.from(part.data).toString("base64");
+          images.push({ type: "image_url", image_url: { url: `data:${part.mimeType};base64,${base64}` } });
+          return `[image: ${part.mimeType}, ${size}; attached after this result]`;
+        }
+        if (isReadableMime(part.mimeType)) return new TextDecoder().decode(part.data);
+        return `[binary data omitted: ${part.mimeType}, ${size}]`;
+      }
+      if (part instanceof vscode.LanguageModelTextPart) return part.value;
+      if (part && typeof part === "object" && "value" in part) {
+        const value = (part as { value: unknown }).value;
+        return typeof value === "string" ? value : stringify(value);
+      }
+      return stringify(part);
+    })
+    .join("");
+
+  return { text, images };
+}
+
+/** Text of a tool result with no image attachments (see `renderToolResult`). */
 export function extractToolResultText(content: unknown): string {
-  if (typeof content === "string") return content;
-  if (Array.isArray(content)) {
-    return content
-      .map((c) => {
-        if (c instanceof vscode.LanguageModelTextPart) return c.value;
-        if (c && typeof c === "object" && "value" in c) return String((c as { value: unknown }).value);
-        return typeof c === "string" ? c : JSON.stringify(c);
-      })
-      .join("");
-  }
-  return content === undefined || content === null ? "" : String(content);
+  return renderToolResult(content, { imageInput: false }).text;
 }
 
 export function toOpenAiTools(
