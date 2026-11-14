@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as vscode from "vscode";
 import { setMockConfig, setMockInspect } from "./vscode.mock";
 import {
@@ -12,6 +12,7 @@ import {
   resolveConnection,
   storeApiKey,
   warnIfKeyWithheld,
+  createWithheldKeyWatcher,
   isLoopbackOrigin,
   originOf,
   ignoredWorkspaceUrl,
@@ -511,5 +512,73 @@ describe("approving the URL being saved", () => {
       "https://b.example",
       "http://c.example:8080",
     ]);
+  });
+});
+
+describe("createWithheldKeyWatcher", () => {
+  const A = "https://a.example";
+  const flush = () => new Promise<void>((resolve) => setImmediate(resolve));
+
+  beforeEach(() => vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] }));
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  async function keySavedForA() {
+    setMockConfig({ baseUrl: A });
+    const context = fakeContext();
+    await storeApiKey(context, "sk-1");
+    return context;
+  }
+
+  it("warns once, for the URL in effect when the edits settle", async () => {
+    const context = await keySavedForA();
+    const warn = vi.spyOn(vscode.window, "showWarningMessage");
+    const watcher = createWithheldKeyWatcher(context, async () => undefined, () => undefined);
+
+    for (const url of ["https://b", "https://b.ex", "https://b.example"]) {
+      setMockConfig({ baseUrl: url });
+      watcher.schedule();
+      await vi.advanceTimersByTimeAsync(1000);
+    }
+    expect(warn).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(500);
+    await flush();
+
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn.mock.calls[0][0]).toContain("The OmniRoute server URL is now https://b.example.");
+    watcher.dispose();
+  });
+
+  it("says nothing when the URL goes back to an approved one before it settles", async () => {
+    const context = await keySavedForA();
+    const warn = vi.spyOn(vscode.window, "showWarningMessage");
+    const watcher = createWithheldKeyWatcher(context, async () => undefined, () => undefined);
+
+    setMockConfig({ baseUrl: "https://b.example" });
+    watcher.schedule();
+    await vi.advanceTimersByTimeAsync(800);
+    setMockConfig({ baseUrl: A });
+    watcher.schedule();
+    await vi.advanceTimersByTimeAsync(2000);
+    await flush();
+
+    expect(warn).not.toHaveBeenCalled();
+    watcher.dispose();
+  });
+
+  it("stops a pending check when disposed", async () => {
+    const context = await keySavedForA();
+    const warn = vi.spyOn(vscode.window, "showWarningMessage");
+    const watcher = createWithheldKeyWatcher(context, async () => undefined, () => undefined);
+
+    setMockConfig({ baseUrl: "https://b.example" });
+    watcher.schedule();
+    watcher.dispose();
+    await vi.advanceTimersByTimeAsync(2000);
+    await flush();
+
+    expect(warn).not.toHaveBeenCalled();
   });
 });
