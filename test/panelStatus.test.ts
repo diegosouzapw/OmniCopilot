@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type * as vscode from "vscode";
-import { setMockConfig, setMockInspect } from "./vscode.mock";
+import { ConfigurationTarget, configUpdates, setMockConfig, setMockInspect } from "./vscode.mock";
 import { OmniRouteClient } from "../src/client";
 import type { ProbeResult } from "../src/diagnostics";
 import { OmniPanelProvider } from "../src/panel";
@@ -86,5 +86,77 @@ describe("panel status ordering", () => {
     await first;
 
     expect(posted.map((status) => status.url)).toEqual(["http://192.168.0.15:20128"]);
+  });
+});
+
+describe("panel Save", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  /** A panel whose SecretStorage writes note how many settings writes came before them. */
+  function savingPanel() {
+    vi.spyOn(OmniRouteClient.prototype, "probe").mockResolvedValue(offline);
+    const secrets = new Map<string, string>();
+    const writes: Array<{ name: string; value: string; settingsWritesBefore: number }> = [];
+    const context = {
+      secrets: {
+        get: async (key: string) => secrets.get(key),
+        store: async (key: string, value: string) => {
+          secrets.set(key, value);
+          writes.push({ name: key, value, settingsWritesBefore: configUpdates.length });
+        },
+        delete: async (key: string) => void secrets.delete(key),
+      },
+      globalState: { get: () => undefined, update: async () => undefined },
+      workspaceState: { get: () => undefined, update: async () => undefined },
+    } as unknown as vscode.ExtensionContext;
+    const log = { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() };
+    const panel = new OmniPanelProvider(context, log as unknown as vscode.LogOutputChannel, async () => undefined);
+    const save = (url: string, apiKey: string) =>
+      (panel as unknown as { handleMessage(m: Record<string, unknown>): Promise<void> }).handleMessage({
+        type: "save",
+        url,
+        apiKey,
+      });
+    return { secrets, writes, save };
+  }
+
+  it("approves the typed URL for a new key before writing the setting", async () => {
+    setMockConfig({ baseUrl: "https://a.example" });
+    const { writes, save } = savingPanel();
+
+    await save("https://b.example/", "sk-1");
+
+    const approval = writes.find(
+      (w) => w.name === "omnicopilot.apiKeyOrigins" && w.value === JSON.stringify(["https://b.example"])
+    );
+    expect(approval?.settingsWritesBefore).toBe(0);
+    expect(configUpdates).toEqual([
+      { key: "baseUrl", value: "https://b.example", target: ConfigurationTarget.Global },
+    ]);
+  });
+
+  it("approves the typed URL for the stored key before writing the setting", async () => {
+    setMockConfig({ baseUrl: "https://a.example" });
+    const { secrets, writes, save } = savingPanel();
+    secrets.set("omnicopilot.apiKey", "sk-1");
+    secrets.set("omnicopilot.apiKeyOrigins", JSON.stringify(["https://a.example"]));
+
+    await save("https://b.example", "");
+
+    const approval = writes.find((w) => w.name === "omnicopilot.apiKeyOrigins");
+    expect(approval?.value).toBe(JSON.stringify(["https://a.example", "https://b.example"]));
+    expect(approval?.settingsWritesBefore).toBe(0);
+    expect(configUpdates).toHaveLength(1);
+  });
+
+  it("leaves the URL setting alone when only a key is saved", async () => {
+    setMockConfig({ baseUrl: "https://a.example" });
+    const { secrets, save } = savingPanel();
+
+    await save("https://a.example", "sk-1");
+
+    expect(configUpdates).toEqual([]);
+    expect(secrets.get("omnicopilot.apiKey")).toBe("sk-1");
+    expect(secrets.get("omnicopilot.apiKeyOrigins")).toBe(JSON.stringify(["https://a.example"]));
   });
 });

@@ -431,3 +431,23 @@ describe("personal limit text", () => {
     expect(view.personal?.weeklyText).toBe("$3.00 / —");
   });
 });
+
+describe("malformed quota windows", () => {
+  it("skips a window that is null or not an object instead of hiding the whole section", () => {
+    const view = toUsageView({
+      allowed: true,
+      personal: null,
+      provider: null,
+      providers: [
+        {
+          connectionId: "c",
+          provider: "p",
+          quotas: { gone: null, text: "x", count: 3, session: { usedPercentage: 38 } } as never,
+        },
+      ],
+    });
+    if (view.kind !== "ready") throw new Error("expected a ready view");
+    expect(Object.keys(view.providers[0]?.quotas ?? {})).toEqual(["session"]);
+    expect(view.providers[0]?.quotas?.session?.text).toBe("62% left");
+  });
+});

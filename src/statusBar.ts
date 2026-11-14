@@ -93,7 +93,7 @@ export class ConnectionStatusBar implements vscode.Disposable {
   start(): void {
     this.applyVisibility();
     this.scheduleLoop();
-    void this.checkNow();
+    this.pollInBackground();
   }
 
   /** Feed request outcomes from the provider so the dot reacts instantly. */
@@ -128,7 +128,7 @@ export class ConnectionStatusBar implements vscode.Disposable {
   restart(): void {
     this.applyVisibility();
     this.scheduleLoop();
-    void this.checkNow();
+    this.pollInBackground();
   }
 
   private applyVisibility(): void {
@@ -142,7 +142,12 @@ export class ConnectionStatusBar implements vscode.Disposable {
     const seconds = vscode.workspace
       .getConfiguration("omnicopilot")
       .get<number>("healthCheckIntervalSeconds", 30);
-    this.timer = setInterval(() => void this.checkNow(), Math.max(seconds, 5) * 1000);
+    this.timer = setInterval(() => this.pollInBackground(), Math.max(seconds, 5) * 1000);
+  }
+
+  /** A poll nobody waits for: log a failure instead of leaving it unhandled. */
+  private pollInBackground(): void {
+    this.checkNow().catch((err: unknown) => this.log.warn(`Connection check failed: ${String(err)}`));
   }
 
   private setStatus(status: "online" | "offline"): void {
