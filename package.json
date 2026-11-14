@@ -154,7 +154,7 @@
         "omnicopilot.baseUrl": {
           "type": "string",
           "default": "http://localhost:20128",
-          "scope": "machine",
+          "scope": "application",
           "order": 1,
           "description": "%cfg.baseUrl%"
         },

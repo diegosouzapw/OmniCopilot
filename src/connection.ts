@@ -8,6 +8,11 @@ export const SECRET_API_KEY = "omnicopilot.apiKey";
 export const STATE_API_KEY_ORIGIN = "omnicopilot.apiKeyOrigin";
 /** globalState entry listing the plain-HTTP origins the user was already warned about. */
 const STATE_INSECURE_WARNED = "omnicopilot.insecureOriginsWarned";
+/** globalState entry set by the first-run welcome; present means an existing install. */
+const STATE_WELCOMED = "omnicopilot.welcomed";
+/** globalState entry naming the release whose one-time notice was already handled. */
+const STATE_NOTICE_VERSION = "omnicopilot.noticeVersion";
+const NOTICE_VERSION = "1.4.0";
 
 export interface Connection {
   /** Normalized API base URL (always ends in `/v1`). */
@@ -90,6 +95,51 @@ export async function resolveConnection(context: vscode.ExtensionContext): Promi
     keyWithheld: decision.keyWithheld,
     boundOrigin: decision.bindNow ? origin : boundOrigin,
   };
+}
+
+/**
+ * Which one-time notice an activation owes the user about the server URL now being
+ * read from user settings only. A fresh install has nothing to unlearn.
+ */
+export function upgradeNotice(args: {
+  welcomed: boolean;
+  noticeVersion: string | undefined;
+  hasStoredKey: boolean;
+}): "none" | "with-key" | "without-key" {
+  if (!args.welcomed || args.noticeVersion === NOTICE_VERSION) return "none";
+  return args.hasStoredKey ? "with-key" : "without-key";
+}
+
+/**
+ * On activation: tell an existing install, once, that a workspace's server URL is
+ * no longer read and which URL is in effect. A fresh install only gets the marker.
+ */
+export async function showUpgradeNoticeOnce(context: vscode.ExtensionContext): Promise<void> {
+  // Read both markers before the first await: the first-run welcome sets
+  // `welcomed` on a fresh install as soon as it runs.
+  const welcomed = context.globalState.get<boolean>(STATE_WELCOMED) === true;
+  const noticeVersion = context.globalState.get<string>(STATE_NOTICE_VERSION);
+  if (noticeVersion === NOTICE_VERSION) return;
+  await context.globalState.update(STATE_NOTICE_VERSION, NOTICE_VERSION);
+  if (!welcomed) return;
+
+  const connection = await resolveConnection(context);
+  const notice = upgradeNotice({ welcomed, noticeVersion, hasStoredKey: connection.hasStoredKey });
+  if (notice === "none") return;
+  const root = serverRootUrl(connection.baseUrl);
+  const message =
+    notice === "with-key"
+      ? vscode.l10n.t(
+          "OmniRoute now reads the server URL only from your user settings. It is {0}, and a URL set in a workspace's settings is no longer used. Your API key is tied to that server.",
+          root
+        )
+      : vscode.l10n.t(
+          "OmniRoute now reads the server URL only from your user settings. It is {0}, and a URL set in a workspace's settings is no longer used.",
+          root
+        );
+  const openPanel = vscode.l10n.t("Open panel");
+  const pick = await vscode.window.showInformationMessage(message, openPanel);
+  if (pick === openPanel) void vscode.commands.executeCommand("omnicopilot.manage");
 }
 
 /** Store the key and bind it to the origin currently configured. */
