@@ -293,6 +293,7 @@ export class OmniPanelProvider implements vscode.WebviewViewProvider {
             row.append(b, text);
             usageBody.append(row);
           };
+          const reset = (value) => value ? " · " + S.usageResetsIn.replace("{0}", value) : "";
           const pers = u.personal;
           if (pers) {
             const usd = (v) => (typeof v === "number" ? "$" + v.toFixed(2) : "—");
@@ -301,9 +302,9 @@ export class OmniPanelProvider implements vscode.WebviewViewProvider {
                 ? " (" + Math.max(0, Math.round((1 - spent / limit) * 100)) + "% left)"
                 : "";
             if (pers.dailyLimitUsd !== null)
-              line(S.usageDaily, usd(pers.dailySpentUsd) + " / " + usd(pers.dailyLimitUsd) + left(pers.dailySpentUsd, pers.dailyLimitUsd));
+              line(S.usageDaily, usd(pers.dailySpentUsd) + " / " + usd(pers.dailyLimitUsd) + left(pers.dailySpentUsd, pers.dailyLimitUsd) + reset(pers.dailyResetIn));
             if (pers.weeklyLimitUsd !== null)
-              line(S.usageWeekly, usd(pers.weeklySpentUsd) + " / " + usd(pers.weeklyLimitUsd) + left(pers.weeklySpentUsd, pers.weeklyLimitUsd));
+              line(S.usageWeekly, usd(pers.weeklySpentUsd) + " / " + usd(pers.weeklyLimitUsd) + left(pers.weeklySpentUsd, pers.weeklyLimitUsd) + reset(pers.weeklyResetIn));
           }
           const providers = Array.isArray(u.providers) ? u.providers : [];
           if (providers.length === 0 && !pers) {
@@ -314,7 +315,7 @@ export class OmniPanelProvider implements vscode.WebviewViewProvider {
               for (const [name, q] of windows) {
                 const rem = typeof q.remaining === "number" ? q.remaining + "% left" : "";
                 const label = snap.provider + (windows.length > 1 ? " · " + name : "");
-                line(label, rem || "—");
+                line(label, (rem || "—") + reset(q.resetIn));
               }
             }
           }

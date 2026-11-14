@@ -48,6 +48,46 @@ describe("toUsageView", () => {
     const view = toUsageView({ allowed: true, personal: null, provider: null });
     expect(view).toEqual({ kind: "ready", personal: null, providers: [] });
   });
+
+  it("prepares personal and provider reset labels for the panel", () => {
+    const now = Date.parse("2026-08-19T12:00:00Z");
+    const view = toUsageView(
+      {
+        allowed: true,
+        personal: {
+          enabled: true,
+          dailyLimitUsd: 10,
+          weeklyLimitUsd: 50,
+          dailySpentUsd: 2,
+          weeklySpentUsd: 8,
+          dailyResetAtIso: "2026-08-19T15:12:00Z",
+          weeklyResetAtIso: "2026-08-21T16:00:00Z",
+          dailyExceeded: false,
+          weeklyExceeded: false,
+        },
+        provider: null,
+        providers: [
+          {
+            connectionId: "c1",
+            provider: "codex",
+            quotas: {
+              primary: { remaining: 75, resetAt: "2026-08-19T12:30:00Z" },
+              secondary: { remaining: 100 },
+            },
+          },
+        ],
+      },
+      now
+    );
+
+    expect(view.kind).toBe("ready");
+    if (view.kind === "ready") {
+      expect(view.personal?.dailyResetIn).toBe("3h 12m");
+      expect(view.personal?.weeklyResetIn).toBe("2d 4h");
+      expect(view.providers[0]?.quotas?.primary?.resetIn).toBe("30m");
+      expect(view.providers[0]?.quotas?.secondary?.resetIn).toBeNull();
+    }
+  });
 });
 
 describe("formatters", () => {
