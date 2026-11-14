@@ -270,6 +270,117 @@ describe("provider catalog", () => {
   });
 });
 
+describe("provider effort picker", () => {
+  let fetchMock: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  type Schema = {
+    properties: {
+      reasoningEffort: {
+        title: string;
+        enum: string[];
+        enumItemLabels: string[];
+        group: string;
+        default?: string;
+      };
+    };
+  };
+
+  async function list(config: Record<string, unknown> = {}) {
+    fetchMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          object: "list",
+          data: [
+            { id: "plain" },
+            { id: "thinker", capabilities: { reasoning: true } },
+            { id: "tiered", capabilities: { thinking: true, effort_tiers: ["low", "high", "max"] } },
+          ],
+        }),
+        { status: 200, headers: { "content-type": "application/json" } }
+      )
+    );
+    const { provider, progress, token } = makeProvider({ config });
+    const infos = await provider.provideLanguageModelChatInformation({ silent: true }, token);
+    const byId = new Map(infos.map((i) => [i.id, i as unknown as { configurationSchema?: Schema }]));
+    return { provider, progress, token, byId };
+  }
+
+  it("declares the effort picker only on reasoning models", async () => {
+    const { byId } = await list();
+    expect(byId.get("plain")?.configurationSchema).toBeUndefined();
+    const thinker = byId.get("thinker")?.configurationSchema?.properties.reasoningEffort;
+    expect(thinker?.title).toBe("Thinking effort");
+    expect(thinker?.group).toBe("navigation");
+    expect(thinker?.enum).toEqual(["none", "low", "medium", "high", "xhigh", "max"]);
+    expect(thinker?.enumItemLabels).toEqual(["Off", "Low", "Medium", "High", "Extra high", "Max"]);
+    expect("default" in (thinker as object)).toBe(false);
+  });
+
+  it("offers exactly the tiers the model advertises, labelling unknown ones by id", async () => {
+    const { byId } = await list();
+    const tiered = byId.get("tiered")?.configurationSchema?.properties.reasoningEffort;
+    expect(tiered?.enum).toEqual(["low", "high", "max"]);
+    expect(tiered?.enumItemLabels).toEqual(["Low", "High", "Max"]);
+  });
+
+  it("preselects the configured default only on models that offer it", async () => {
+    const { byId } = await list({ defaultReasoningEffort: "medium" });
+    expect(byId.get("thinker")?.configurationSchema?.properties.reasoningEffort.default).toBe("medium");
+    expect("default" in (byId.get("tiered")?.configurationSchema?.properties.reasoningEffort as object)).toBe(false);
+  });
+
+  async function chat(
+    provider: OmniRouteChatProvider,
+    progress: vscode.Progress<Reported>,
+    token: vscode.CancellationToken,
+    options: Record<string, unknown>
+  ) {
+    fetchMock.mockResolvedValueOnce(sseResponse([{ choices: [{ delta: { content: "ok" } }] }]));
+    await provider.provideLanguageModelChatResponse(
+      { ...(modelInfo(false) as object), id: "thinker", omniModelId: "thinker" } as never,
+      [
+        {
+          role: vscode.LanguageModelChatMessageRole.User,
+          content: [new vscode.LanguageModelTextPart("go")],
+        } as never,
+      ],
+      { tools: [], toolMode: 1, ...options } as never,
+      progress,
+      token
+    );
+    const init = fetchMock.mock.calls[fetchMock.mock.calls.length - 1][1] as RequestInit;
+    return JSON.parse(init.body as string) as { reasoning_effort?: string };
+  }
+
+  it("forwards the effort chosen in the picker as reasoning_effort", async () => {
+    const { provider, progress, token } = await list({ defaultReasoningEffort: "low" });
+    const body = await chat(provider, progress, token, {
+      modelConfiguration: { reasoningEffort: "high" },
+    });
+    expect(body.reasoning_effort).toBe("high");
+  });
+
+  it("forwards max unchanged", async () => {
+    const { provider, progress, token } = await list();
+    const body = await chat(provider, progress, token, {
+      modelConfiguration: { reasoningEffort: "max" },
+    });
+    expect(body.reasoning_effort).toBe("max");
+  });
+
+  it("sends no reasoning_effort when nothing was picked and no default is set", async () => {
+    const { provider, progress, token } = await list();
+    const body = await chat(provider, progress, token, {});
+    expect(body.reasoning_effort).toBeUndefined();
+  });
+});
+
 describe("provider test harness", () => {
   it("offers secrets, globalState and workspaceState backed by maps", async () => {
     const { context } = makeProvider();

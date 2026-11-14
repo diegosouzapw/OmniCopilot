@@ -93,3 +93,40 @@ export function resolveReasoningEffort(options: {
   if (!options.modelIsReasoning) return undefined;
   return norm(options.configuredDefault);
 }
+
+export interface EffortSchema {
+  properties: {
+    reasoningEffort: {
+      type: "string";
+      title: string;
+      enum: string[];
+      enumItemLabels: string[];
+      group: "navigation";
+      default?: string;
+    };
+  };
+}
+
+/**
+ * Per-model configuration schema for VS Code's model picker: a property with
+ * an `enum` becomes a submenu next to the model, and the user's pick arrives in
+ * `options.modelConfiguration.reasoningEffort`. `default` is set only when the
+ * configured default, normalized, is one of the tiers; without it VS Code sends
+ * nothing until the user picks, so the server keeps deciding.
+ */
+export function buildEffortSchema(
+  tiers: readonly string[],
+  text: { title: string; label(tier: string): string },
+  defaultEffort?: string
+): EffortSchema {
+  const reasoningEffort: EffortSchema["properties"]["reasoningEffort"] = {
+    type: "string",
+    title: text.title,
+    enum: [...tiers],
+    enumItemLabels: tiers.map((tier) => text.label(tier)),
+    group: "navigation",
+  };
+  const preselected = normalizeReasoningEffort(defaultEffort, tiers);
+  if (preselected && tiers.includes(preselected)) reasoningEffort.default = preselected;
+  return { properties: { reasoningEffort } };
+}
