@@ -4,8 +4,12 @@ import { explainProbeFailure, type ProbeResult } from "./diagnostics";
 
 /** SecretStorage entry holding the API key. */
 export const SECRET_API_KEY = "omnicopilot.apiKey";
-/** globalState entry holding the origin the stored key was saved for. */
-export const STATE_API_KEY_ORIGIN = "omnicopilot.apiKeyOrigin";
+/** SecretStorage entry holding the origins the user approved for the stored key,
+ * as a JSON array, newest last. It lives next to the key so that it travels
+ * with it to every window, remote host and profile that can read the key. */
+export const SECRET_API_KEY_ORIGINS = "omnicopilot.apiKeyOrigins";
+/** How many approved origins are kept; the oldest is dropped first. */
+const MAX_APPROVED_ORIGINS = 5;
 /** globalState entry listing the plain-HTTP origins the user was already warned about. */
 const STATE_INSECURE_WARNED = "omnicopilot.insecureOriginsWarned";
 /** globalState entry set by the first-run welcome; present means an existing install. */
@@ -24,7 +28,8 @@ export interface Connection {
   hasStoredKey: boolean;
   /** A key is stored but was saved for another origin, so it is not sent. */
   keyWithheld: boolean;
-  boundOrigin?: string;
+  /** Origins the user approved for the stored key, newest last. */
+  approvedOrigins: string[];
 }
 
 /** Scheme, lower-case host and port of a base URL, without any path. */
@@ -50,22 +55,54 @@ export function isLoopbackOrigin(origin: string): boolean {
 }
 
 /**
- * The key goes only to the origin it was saved for. A key from an install that
- * predates the binding is adopted by the current origin; after that, a changed
- * URL keeps the key at home until the user rebinds it on purpose.
+ * The key goes only to the origins the user approved for it. A key from before
+ * 1.4.0 (no list at all) is adopted by the current origin; after that, a changed
+ * URL keeps the key at home until the user approves it on purpose.
  */
 export function decideKeyUse(args: {
   storedKey?: string;
-  boundOrigin?: string;
+  approvedOrigins?: readonly string[];
   currentOrigin: string;
 }): { apiKey?: string; keyWithheld: boolean; bindNow: boolean } {
-  const { storedKey, boundOrigin, currentOrigin } = args;
+  const { storedKey, approvedOrigins, currentOrigin } = args;
   if (!storedKey) return { apiKey: undefined, keyWithheld: false, bindNow: false };
-  if (!boundOrigin) return { apiKey: storedKey, keyWithheld: false, bindNow: true };
-  if (boundOrigin === currentOrigin) {
+  if (approvedOrigins === undefined) {
+    return { apiKey: storedKey, keyWithheld: false, bindNow: true };
+  }
+  if (approvedOrigins.includes(currentOrigin)) {
     return { apiKey: storedKey, keyWithheld: false, bindNow: false };
   }
   return { apiKey: undefined, keyWithheld: true, bindNow: false };
+}
+
+/**
+ * The stored list of approved origins. Undefined only when nothing is stored (a
+ * key from before 1.4.0); anything unreadable is an empty list, so a damaged
+ * value withholds the key instead of letting any origin adopt it.
+ */
+export function parseApprovedOrigins(raw: string | undefined): string[] | undefined {
+  if (raw === undefined) return undefined;
+  try {
+    const value: unknown = JSON.parse(raw);
+    return Array.isArray(value)
+      ? value.filter((item): item is string => typeof item === "string")
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+async function readApprovedOrigins(
+  context: vscode.ExtensionContext
+): Promise<string[] | undefined> {
+  return parseApprovedOrigins(await context.secrets.get(SECRET_API_KEY_ORIGINS));
+}
+
+async function writeApprovedOrigins(
+  context: vscode.ExtensionContext,
+  origins: readonly string[]
+): Promise<void> {
+  await context.secrets.store(SECRET_API_KEY_ORIGINS, JSON.stringify(origins));
 }
 
 function configuredBaseUrl(): string {
@@ -81,11 +118,12 @@ export async function resolveConnection(context: vscode.ExtensionContext): Promi
   const baseUrl = configuredBaseUrl();
   const origin = originOf(baseUrl);
   const storedKey = (await context.secrets.get(SECRET_API_KEY)) || undefined;
-  const boundOrigin = context.globalState.get<string>(STATE_API_KEY_ORIGIN) || undefined;
+  const approvedOrigins = await readApprovedOrigins(context);
 
-  const decision = decideKeyUse({ storedKey, boundOrigin, currentOrigin: origin });
+  const decision = decideKeyUse({ storedKey, approvedOrigins, currentOrigin: origin });
   if (decision.bindNow) {
-    await context.globalState.update(STATE_API_KEY_ORIGIN, origin);
+    await writeApprovedOrigins(context, [origin]);
+    await warnIfInsecure(context, origin);
   }
   return {
     baseUrl,
@@ -93,7 +131,7 @@ export async function resolveConnection(context: vscode.ExtensionContext): Promi
     apiKey: decision.apiKey,
     hasStoredKey: Boolean(storedKey),
     keyWithheld: decision.keyWithheld,
-    boundOrigin: decision.bindNow ? origin : boundOrigin,
+    approvedOrigins: decision.bindNow ? [origin] : (approvedOrigins ?? []),
   };
 }
 
@@ -142,27 +180,30 @@ export async function showUpgradeNoticeOnce(context: vscode.ExtensionContext): P
   if (pick === openPanel) void vscode.commands.executeCommand("omnicopilot.manage");
 }
 
-/** Store the key and bind it to the origin currently configured. */
+/** Store a new key, approved for the origin currently configured only. */
 export async function storeApiKey(context: vscode.ExtensionContext, key: string): Promise<void> {
+  const origin = originOf(configuredBaseUrl());
+  // The list first: in between, the old key is approved for fewer origins, never
+  // the new key for the old key's origins, and never a key without a list.
+  await writeApprovedOrigins(context, [origin]);
   await context.secrets.store(SECRET_API_KEY, key);
-  await bindToCurrentOrigin(context);
+  await warnIfInsecure(context, origin);
 }
 
-/** Explicit user action: send the stored key to the origin currently configured. */
+/** Explicit user action: also send the stored key to the origin currently configured. */
 export async function rebindApiKey(context: vscode.ExtensionContext): Promise<void> {
   if (!(await context.secrets.get(SECRET_API_KEY))) return;
-  await bindToCurrentOrigin(context);
+  const origin = originOf(configuredBaseUrl());
+  const approved = (await readApprovedOrigins(context)) ?? [];
+  const next = [...approved.filter((item) => item !== origin), origin].slice(-MAX_APPROVED_ORIGINS);
+  await writeApprovedOrigins(context, next);
+  await warnIfInsecure(context, origin);
 }
 
 export async function clearApiKey(context: vscode.ExtensionContext): Promise<void> {
+  // The key first: a key left without its list would read as one from before 1.4.0.
   await context.secrets.delete(SECRET_API_KEY);
-  await context.globalState.update(STATE_API_KEY_ORIGIN, undefined);
-}
-
-async function bindToCurrentOrigin(context: vscode.ExtensionContext): Promise<void> {
-  const origin = originOf(configuredBaseUrl());
-  await context.globalState.update(STATE_API_KEY_ORIGIN, origin);
-  await warnIfInsecure(context, origin);
+  await context.secrets.delete(SECRET_API_KEY_ORIGINS);
 }
 
 /** Tell the user, once per origin, that a key bound to plain HTTP travels in the clear. */
@@ -184,7 +225,7 @@ export function keyWithheldMessage(connection: Connection): string | undefined {
   if (!connection.keyWithheld) return undefined;
   return vscode.l10n.t(
     "The stored API key was saved for {0} and is not being sent to {1}. Press Save & Test to use it here.",
-    connection.boundOrigin ?? "",
+    connection.approvedOrigins.at(-1) ?? "",
     connection.origin
   );
 }
