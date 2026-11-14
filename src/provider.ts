@@ -2,6 +2,7 @@ import * as vscode from "vscode";
 import { expandForAgentsWindow } from "./agentsWindow";
 import { selectChatModels } from "./catalogFilter";
 import { DEFAULT_BASE_URL, OmniRouteClient, OmniRouteRequestError } from "./client";
+import { SECRET_API_KEY, resolveConnection } from "./connection";
 import { estimateTokens, toOpenAiMessages, toOpenAiTools } from "./convert";
 import { describeModel } from "./modelInfo";
 import {
@@ -16,7 +17,7 @@ import { createToolNameAliases } from "./toolNames";
 import type { ChatRequest, OmniRouteModel, StreamUsage } from "./types";
 import { USAGE_MIME_TYPE, buildUsagePayload } from "./usage";
 
-export const SECRET_API_KEY = "omnicopilot.apiKey";
+export { SECRET_API_KEY };
 
 interface OmniModelInfo extends vscode.LanguageModelChatInformation {
   omniModelId: string;
@@ -131,9 +132,8 @@ export class OmniRouteChatProvider
   }
 
   private async makeClient(): Promise<OmniRouteClient> {
-    const baseUrl = getConfig().get<string>("baseUrl", DEFAULT_BASE_URL);
-    const apiKey = await this.deps.context.secrets.get(SECRET_API_KEY);
-    return new OmniRouteClient({ baseUrl, apiKey: apiKey || undefined });
+    const { baseUrl, apiKey } = await resolveConnection(this.deps.context);
+    return new OmniRouteClient({ baseUrl, apiKey });
   }
 
   // ── Model discovery ─────────────────────────────────────────────────────

@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
-import { DEFAULT_BASE_URL, serverRootUrl } from "./client";
-import { SECRET_API_KEY } from "./provider";
+import { serverRootUrl } from "./client";
+import { isLoopbackOrigin, resolveConnection } from "./connection";
 
 interface CliTool {
   id: string;
@@ -53,12 +53,13 @@ export async function configureCliTool(
 
   const cfg = vscode.workspace.getConfiguration("omnicopilot");
   const cliPath = cfg.get<string>("cliPath", "omniroute").trim() || "omniroute";
-  const root = serverRootUrl(cfg.get<string>("baseUrl", DEFAULT_BASE_URL));
-  const apiKey = await context.secrets.get(SECRET_API_KEY);
+  const connection = await resolveConnection(context);
+  const root = serverRootUrl(connection.baseUrl);
+  // A key withheld for this origin is not handed to the terminal either.
+  const apiKey = connection.apiKey;
 
-  const isLocal = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:|\/|$)/i.test(root);
   const args = [tool.subcommand];
-  if (!isLocal) {
+  if (!isLoopbackOrigin(connection.origin)) {
     args.push("--remote", shellQuote(root));
   }
 
