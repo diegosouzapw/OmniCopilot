@@ -51,11 +51,25 @@ describe("panel theme rules", () => {
 
   it("falls back to colours every high-contrast theme defines", () => {
     const decls = rule(css, hc);
-    expect(decls).toContain("--omni-bar: var(--vscode-progressBar-background, var(--vscode-foreground))");
+    expect(decls).toContain("--omni-bar: var(--vscode-foreground)");
     expect(decls).toContain("--omni-accent: var(--vscode-button-background, transparent)");
     expect(decls).toContain(
       "--omni-accent-fg: var(--vscode-button-foreground, var(--vscode-foreground))"
     );
+  });
+
+  it("tells the bar's fill from its track in high contrast", () => {
+    // widget.border and progressBar.background are both contrastBorder there.
+    const value = (name: string) =>
+      rule(css, hc)
+        .find((d) => d.startsWith(`${name}:`))
+        ?.slice(name.length + 1)
+        .trim();
+    expect(value("--omni-bar")).toBeDefined();
+    expect(value("--omni-track")).toBeDefined();
+    expect(value("--omni-bar")).not.toBe(value("--omni-track"));
+    expect(value("--omni-bar")).not.toContain("progressBar-background");
+    expect(value("--omni-bar")).not.toContain("widget-border");
   });
 
   it("keeps the secondary hover on a defined colour", () => {
