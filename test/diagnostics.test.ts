@@ -107,7 +107,7 @@ describe("explainProbeFailure", () => {
       ctx({ remoteName: "wsl", isLoopback: true })
     );
     expect(hints).toEqual([
-      "This window is connected to wsl, so the address is resolved on that machine, not on your desktop.",
+      "This window is connected to wsl, so the address is resolved on that machine, not on your own computer.",
       "Start OmniRoute (npx omniroute), or point Server URL at the machine where it runs.",
     ]);
   });
