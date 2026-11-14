@@ -6,7 +6,7 @@ import { OmniPanelProvider } from "./panel";
 import { OmniRouteChatProvider } from "./provider";
 import { ConnectionStatusBar } from "./statusBar";
 
-const OMNIROUTE_REPO = "https://github.com/diegosouzapw/OmniRoute";
+const OMNIROUTE_REPO = "https://github.com/cheaper-inference/OmniRoute";
 const VENDOR = "omniroute";
 
 let provider: OmniRouteChatProvider | undefined;
@@ -178,7 +178,7 @@ async function warnDashboardNotEmbeddable(): Promise<void> {
   );
   if (pick === learnMore) {
     void vscode.env.openExternal(
-      vscode.Uri.parse("https://github.com/diegosouzapw/OmniRoute/blob/main/docs/guides/VSCODE-COPILOT.md")
+      vscode.Uri.parse("https://github.com/cheaper-inference/OmniRoute/blob/main/docs/guides/VSCODE-COPILOT.md")
     );
   }
 }
