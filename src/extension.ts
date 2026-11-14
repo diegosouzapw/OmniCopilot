@@ -30,6 +30,10 @@ export function activate(context: vscode.ExtensionContext): void {
   statusBar = new ConnectionStatusBar(
     () => makeClient(context),
     log,
+    // The model picker is empty when the server was down at startup; list again once it answers.
+    (status) => {
+      if (status === "online") void provider?.refresh();
+    },
     () => resolveConnection(context)
   );
   context.subscriptions.push(statusBar);
