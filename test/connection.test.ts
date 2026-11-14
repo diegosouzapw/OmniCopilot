@@ -582,3 +582,34 @@ describe("createWithheldKeyWatcher", () => {
     expect(warn).not.toHaveBeenCalled();
   });
 });
+
+describe("storeApiKey write order", () => {
+  it("never leaves the old key approved for the new server, nor the new key for the old ones", async () => {
+    const A = "https://a.example";
+    const B = "https://b.example";
+    const context = fakeContext();
+    context.secretMap.set(SECRET_API_KEY, "sk-old");
+    context.secretMap.set(SECRET_API_KEY_ORIGINS, JSON.stringify([A]));
+    setMockConfig({ baseUrl: B }); // changed in Settings: the old key is withheld here
+
+    const snapshots: Array<{ key?: string; origins?: string[] }> = [];
+    const store = context.secrets.store.bind(context.secrets);
+    context.secrets.store = async (name: string, value: string) => {
+      await store(name, value);
+      snapshots.push({
+        key: context.secretMap.get(SECRET_API_KEY),
+        origins: parseApprovedOrigins(context.secretMap.get(SECRET_API_KEY_ORIGINS)),
+      });
+    };
+
+    await storeApiKey(context, "sk-new");
+
+    expect(snapshots.length).toBeGreaterThan(0);
+    for (const { key, origins } of snapshots) {
+      expect(key === "sk-old" && origins?.includes(B), JSON.stringify({ key, origins })).toBe(false);
+      expect(key === "sk-new" && origins?.includes(A), JSON.stringify({ key, origins })).toBe(false);
+      expect(key !== undefined && origins === undefined).toBe(false);
+    }
+    expect(snapshots.at(-1)).toEqual({ key: "sk-new", origins: [B] });
+  });
+});
