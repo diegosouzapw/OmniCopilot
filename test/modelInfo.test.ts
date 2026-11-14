@@ -76,4 +76,20 @@ describe("describeModel", () => {
     expect(describeModel({ id: "x/y", capabilities: { effort_tiers: ["", " "] } }, cfg).effortTiers).toBeUndefined();
     expect(describeModel({ id: "x/y", capabilities: { effort_tiers: [] } }, cfg).effortTiers).toBeUndefined();
   });
+
+  it.each([0, -5, Number.NaN])(
+    "falls back to the default context length when context_length is %s",
+    (context_length) => {
+      const d = describeModel({ id: "x/y", context_length }, cfg);
+      expect(d.contextLength).toBe(128_000);
+      expect(d.maxOutputTokens).toBe(16_384);
+      expect(d.maxInputTokens).toBe(111_616);
+    }
+  );
+
+  it("never reserves less than one output token, even for a one-token window", () => {
+    const d = describeModel({ id: "x/y", context_length: 1 }, cfg);
+    expect(d.maxOutputTokens).toBe(1);
+    expect(d.maxInputTokens).toBe(1_024);
+  });
 });

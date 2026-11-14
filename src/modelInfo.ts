@@ -28,14 +28,13 @@ function positive(value: unknown): number | undefined {
  * use the OpenAI-style names.
  */
 export function describeModel(model: OmniRouteModel, cfg: ModelShapingConfig): ModelDescription {
-  const contextLength = model.context_length ?? cfg.defaultContextLength;
+  const contextLength = positive(model.context_length) ?? cfg.defaultContextLength;
   const modelCeiling = positive(model.max_output_tokens) ?? positive(model.max_completion_tokens);
   // Never reserve more than half of the window: a small model with the default
   // 16k budget would otherwise be left with almost no room for the prompt.
-  const maxOutputTokens = Math.min(
-    modelCeiling ?? cfg.maxOutputTokens,
-    cfg.maxOutputTokens,
-    Math.floor(contextLength / 2)
+  const maxOutputTokens = Math.max(
+    Math.min(modelCeiling ?? cfg.maxOutputTokens, cfg.maxOutputTokens, Math.floor(contextLength / 2)),
+    1
   );
   const maxInputTokens = Math.max(
     Math.min(contextLength - maxOutputTokens, positive(model.max_input_tokens) ?? Infinity),
