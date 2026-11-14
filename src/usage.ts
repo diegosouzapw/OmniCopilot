@@ -8,6 +8,8 @@
  * aligned with the server when either side changes.
  */
 
+import type { Translate } from "./diagnostics";
+
 export interface UsageLimitStatus {
   enabled: boolean;
   dailyLimitUsd: number | null;
@@ -43,13 +45,18 @@ export interface UsageSnapshot {
 }
 
 /** A quota window with everything the webview prints already resolved on the
- * host: the script does no arithmetic of its own. */
+ * host: the script does no arithmetic and no formatting of its own. */
 export type UsageQuotaView = UsageQuotaWindow & {
+  /** Width of the bar (0-100); null draws no bar. */
   percentLeft: number | null;
   /** Formatted amount left on a money quota ("$12.50", "12.5 EUR"), else null. */
   balance: string | null;
   unlimited: boolean;
   resetIn: string | null;
+  /** What is left, localised: "$0.37 left", "62% left", "unlimited" or "—". */
+  text: string;
+  /** The server's `displayName` when it sends one, else the window key. */
+  label: string;
 };
 
 export type UsageLimitView = UsageLimitStatus & {
@@ -57,6 +64,9 @@ export type UsageLimitView = UsageLimitStatus & {
   weeklyPercentLeft: number | null;
   dailyResetIn: string | null;
   weeklyResetIn: string | null;
+  /** "$1.20 / $5.00 (76% left)"; the share only when it is known. */
+  dailyText: string;
+  weeklyText: string;
 };
 
 export type UsageSnapshotView = Omit<UsageSnapshot, "quotas"> & {
@@ -119,9 +129,58 @@ export function percentLeft(spent: number, limit: number | null): number | null 
   return Math.max(0, Math.min(100, Math.round((1 - spent / limit) * 100)));
 }
 
+/** Fills `{0}`-style placeholders without translating: the default for tests. */
+const untranslated: Translate = (source, ...args) =>
+  source.replace(/\{(\d+)\}/g, (match, index: string) =>
+    Number(index) < args.length ? String(args[Number(index)]) : match
+  );
+
+/** "$1.20 / $5.00 (76% left)" for a personal limit row. */
+function limitText(spent: number, limit: number | null, left: number | null, t: Translate): string {
+  const share = left === null ? "" : ` (${t("{0}% left", left)})`;
+  return `${formatUsd(spent)} / ${formatUsd(limit)}${share}`;
+}
+
+/** The text of a quota row: a money balance wins over `unlimited` and over a
+ * percentage; otherwise unlimited, then a known percentage, then a dash. */
+function quotaText(
+  balance: string | null,
+  unlimited: boolean,
+  left: number | null,
+  t: Translate
+): string {
+  if (balance !== null) return t("{0} left", balance);
+  if (unlimited) return t("unlimited");
+  if (left !== null) return t("{0}% left", left);
+  return "—";
+}
+
+function quotaView(name: string, quota: UsageQuotaWindow, now: number, t: Translate): UsageQuotaView {
+  const balance = quotaBalance(quota);
+  const unlimited = quota.unlimited === true;
+  const computed = quotaRemainingPercent(quota);
+  // A row that reads "unlimited" draws no bar.
+  const left = balance === null && unlimited ? null : computed;
+  const displayName = typeof quota.displayName === "string" ? quota.displayName.trim() : "";
+  return {
+    ...quota,
+    percentLeft: left,
+    balance,
+    unlimited,
+    resetIn: resetLabel(quota.resetAt, now),
+    text: quotaText(balance, unlimited, left, t),
+    label: displayName || name,
+  };
+}
+
 /** Resolve the raw response into the panel's three states. Centralises the
- * "older servers answer text" fallback and the providers/provider merge. */
-export function toUsageView(body: UsageResponse, now = Date.now()): UsageView {
+ * "older servers answer text" fallback and the providers/provider merge, and
+ * every text the panel prints (`t` localises it). */
+export function toUsageView(
+  body: UsageResponse,
+  now = Date.now(),
+  t: Translate = untranslated
+): UsageView {
   if (body.allowed === false) return { kind: "disabled", message: body.error?.message };
   const snapshots = Array.isArray(body.providers)
     ? body.providers
@@ -129,13 +188,20 @@ export function toUsageView(body: UsageResponse, now = Date.now()): UsageView {
       ? [body.provider]
       : [];
   const personal: UsageLimitView | null = body.personal
-    ? {
-        ...body.personal,
-        dailyPercentLeft: percentLeft(body.personal.dailySpentUsd, body.personal.dailyLimitUsd),
-        weeklyPercentLeft: percentLeft(body.personal.weeklySpentUsd, body.personal.weeklyLimitUsd),
-        dailyResetIn: resetLabel(body.personal.dailyResetAtIso, now),
-        weeklyResetIn: resetLabel(body.personal.weeklyResetAtIso, now),
-      }
+    ? (() => {
+        const p = body.personal;
+        const dailyPercentLeft = percentLeft(p.dailySpentUsd, p.dailyLimitUsd);
+        const weeklyPercentLeft = percentLeft(p.weeklySpentUsd, p.weeklyLimitUsd);
+        return {
+          ...p,
+          dailyPercentLeft,
+          weeklyPercentLeft,
+          dailyResetIn: resetLabel(p.dailyResetAtIso, now),
+          weeklyResetIn: resetLabel(p.weeklyResetAtIso, now),
+          dailyText: limitText(p.dailySpentUsd, p.dailyLimitUsd, dailyPercentLeft, t),
+          weeklyText: limitText(p.weeklySpentUsd, p.weeklyLimitUsd, weeklyPercentLeft, t),
+        };
+      })()
     : null;
   const providers: UsageSnapshotView[] = snapshots.map((snapshot) => ({
     ...snapshot,
@@ -143,13 +209,7 @@ export function toUsageView(body: UsageResponse, now = Date.now()): UsageView {
       ? Object.fromEntries(
           Object.entries(snapshot.quotas).map(([name, quota]) => [
             name,
-            {
-              ...quota,
-              percentLeft: quotaRemainingPercent(quota),
-              balance: quotaBalance(quota),
-              unlimited: quota.unlimited === true,
-              resetIn: resetLabel(quota.resetAt, now),
-            } satisfies UsageQuotaView,
+            quotaView(name, quota, now, t),
           ])
         )
       : undefined,
@@ -165,6 +225,7 @@ export class UsageUnsupportedError extends Error {}
 export async function fetchUsage(
   baseUrl: string,
   apiKey: string | undefined,
+  t: Translate = untranslated,
   timeoutMs = 6000
 ): Promise<UsageView> {
   const ctrl = new AbortController();
@@ -181,7 +242,7 @@ export async function fetchUsage(
       throw new UsageUnsupportedError("server predates ?format=json");
     }
     const body = (await res.json()) as UsageResponse;
-    return toUsageView(body);
+    return toUsageView(body, Date.now(), t);
   } finally {
     clearTimeout(timer);
   }
@@ -211,10 +272,19 @@ const clampPercent = (value: number): number => Math.max(0, Math.min(100, value)
  * does `used`. Anything else is null rather than a guess.
  *
  * One deliberate difference from the server: a window with a `currency` is a
- * money quota, so there `remaining` and a bare `used` are amounts and are never
- * read as percentages (the panel shows them through `quotaBalance` instead). */
+ * money quota. Its text is the balance (`quotaBalance`); the percentage only
+ * sizes a bar, and only when `total` is positive (from `used`/`total`, else from
+ * `remainingPercentage`). Servers send `total: 0` with `remainingPercentage: 100`
+ * for a prepaid balance, which says nothing about how much is left. */
 export function quotaRemainingPercent(q: UsageQuotaWindow): number | null {
-  const money = isMoneyQuota(q);
+  if (isMoneyQuota(q)) {
+    const total = toNumber(q.total);
+    if (!Number.isFinite(total) || total <= 0) return null;
+    const spent = toNumber(q.used);
+    if (Number.isFinite(spent)) return Math.round(clampPercent(100 - (spent / total) * 100));
+    const remainingPercentage = toNumber(q.remainingPercentage);
+    return Number.isFinite(remainingPercentage) ? Math.round(clampPercent(remainingPercentage)) : null;
+  }
   const used = ((): number | null => {
     const usedPercentage = toNumber(q.usedPercentage);
     if (Number.isFinite(usedPercentage)) return clampPercent(usedPercentage);
@@ -224,14 +294,13 @@ export function quotaRemainingPercent(q: UsageQuotaWindow): number | null {
     if (Number.isFinite(spent) && Number.isFinite(total) && total > 0) {
       return clampPercent((spent / total) * 100);
     }
-    // A money quota's `used`/`remaining` are amounts, never percentages.
-    if (!money && Number.isFinite(spent) && spent >= 0 && spent <= 100) return spent;
+    if (Number.isFinite(spent) && spent >= 0 && spent <= 100) return spent;
 
     const remainingPercentage = toNumber(q.remainingPercentage);
     if (Number.isFinite(remainingPercentage)) return clampPercent(100 - remainingPercentage);
 
     const remaining = toNumber(q.remaining);
-    if (!money && Number.isFinite(remaining) && remaining >= 0 && remaining <= 100) {
+    if (Number.isFinite(remaining) && remaining >= 0 && remaining <= 100) {
       return clampPercent(100 - remaining);
     }
     return null;
