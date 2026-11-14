@@ -1,19 +1,27 @@
 {
   "name": "omnicopilot",
-  "displayName": "OmniRoute for GitHub Copilot Chat",
+  "displayName": "OmniRoute by Cheaper Inference for GitHub Copilot Chat",
   "description": "1200+ AI models in your Copilot Chat — free & forever free. Powered by OmniRoute: 340+ providers (90+ free) — Kimi, Claude, GPT, Gemini, GLM, DeepSeek, Qwen — with agent mode, tool calling, vision and auto-fallback. MIT open source.",
   "version": "1.3.0",
   "publisher": "diegosouzapw",
+  "author": {
+    "name": "Diego Souza",
+    "url": "https://github.com/diegosouzapw"
+  },
   "license": "MIT",
   "icon": "assets/icon.png",
+  "galleryBanner": {
+    "color": "#11120f",
+    "theme": "dark"
+  },
   "repository": {
     "type": "git",
-    "url": "https://github.com/diegosouzapw/OmniCopilot.git"
+    "url": "https://github.com/cheaper-inference/OmniCopilot.git"
   },
   "bugs": {
-    "url": "https://github.com/diegosouzapw/OmniCopilot/issues"
+    "url": "https://github.com/cheaper-inference/OmniCopilot/issues"
   },
-  "homepage": "https://github.com/diegosouzapw/OmniRoute",
+  "homepage": "https://github.com/cheaper-inference/OmniRoute",
   "engines": {
     "vscode": "^1.104.0"
   },
@@ -47,9 +55,9 @@
   ],
   "badges": [
     {
-      "url": "https://img.shields.io/github/stars/diegosouzapw/OmniRoute?style=social",
+      "url": "https://img.shields.io/github/stars/cheaper-inference/OmniRoute?style=social",
       "description": "Star OmniRoute on GitHub",
-      "href": "https://github.com/diegosouzapw/OmniRoute"
+      "href": "https://github.com/cheaper-inference/OmniRoute"
     }
   ],
   "activationEvents": [
@@ -81,6 +89,10 @@
       {
         "vendor": "omniroute",
         "displayName": "OmniRoute",
+        "icon": {
+          "light": "assets/provider-light.svg",
+          "dark": "assets/provider-dark.svg"
+        },
         "managementCommand": "omnicopilot.manage"
       }
     ],

@@ -1,34 +1,8 @@
-<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <!-- Brand background: OmniRoute red gradient -->
-  <rect width="256" height="256" rx="52" fill="url(#bg)"/>
-
-  <!-- Chat bubble (Copilot Chat) -->
-  <ellipse cx="128" cy="117" rx="92" ry="75" fill="white"/>
-  <path d="M70 160 L54 212 L110 184 Z" fill="white"/>
-
-  <!-- Network hub inside the bubble (OmniRoute) -->
-  <g stroke="url(#fg)" stroke-width="8" stroke-linecap="round">
-    <line x1="128" y1="117" x2="86" y2="87"/>
-    <line x1="128" y1="117" x2="170" y2="87"/>
-    <line x1="128" y1="117" x2="86" y2="147"/>
-    <line x1="128" y1="117" x2="170" y2="147"/>
-    <line x1="128" y1="117" x2="128" y2="70"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="256" height="256">
+  <!-- Keak OmniRoute product badge (kit: keak-brand.tsx ProductIcon variant="badge"), Editions accent -->
+  <rect x=".75" y=".75" width="46.5" height="46.5" rx="10.5" fill="#e5ac82" stroke="#040d10" stroke-width="1.5"/>
+  <g transform="translate(10 10) scale(1.166667)" fill="none" stroke="#040d10" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="m10.586 5.414-5.172 5.172"/><path d="m18.586 13.414-5.172 5.172"/><path d="M6 12h12"/>
+    <circle cx="12" cy="20" r="2"/><circle cx="12" cy="4" r="2"/><circle cx="20" cy="12" r="2"/><circle cx="4" cy="12" r="2"/>
   </g>
-  <circle cx="128" cy="117" r="17" fill="url(#fg)"/>
-  <circle cx="86" cy="87" r="11" fill="url(#fg)"/>
-  <circle cx="170" cy="87" r="11" fill="url(#fg)"/>
-  <circle cx="86" cy="147" r="11" fill="url(#fg)"/>
-  <circle cx="170" cy="147" r="11" fill="url(#fg)"/>
-  <circle cx="128" cy="70" r="9" fill="url(#fg)"/>
-
-  <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="256" y2="256" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#E54D5E"/>
-      <stop offset="1" stop-color="#C93D4E"/>
-    </linearGradient>
-    <linearGradient id="fg" x1="60" y1="60" x2="196" y2="170" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#E54D5E"/>
-      <stop offset="1" stop-color="#C93D4E"/>
-    </linearGradient>
-  </defs>
 </svg>
