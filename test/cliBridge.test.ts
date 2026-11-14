@@ -110,7 +110,7 @@ describe("isSafeRemoteUrl", () => {
     expect(isSafeRemoteUrl(root)).toBe(true);
   });
 
-  it.each(["$", "`", '"', "'", "<", ">", "|", "&", ";", "(", ")", "{", "}", "\\"])(
+  it.each(["$", "`", '"', "'", "<", ">", "|", "&", ";", "(", ")", "{", "}", "\\", "%"])(
     "refuses a URL carrying %s",
     (char) => {
       expect(isSafeRemoteUrl(`https://omni.example/a${char}b`)).toBe(false);
@@ -129,6 +129,13 @@ describe("isSafeRemoteUrl", () => {
     expect(isSafeRemoteUrl("not a url")).toBe(false);
     expect(isSafeRemoteUrl("file:///etc/passwd")).toBe(false);
     expect(isSafeRemoteUrl("")).toBe(false);
+  });
+});
+
+describe("isSafeRemoteUrl and cmd.exe variables", () => {
+  it("refuses a percent sign, which cmd.exe expands inside double quotes", () => {
+    expect(isSafeRemoteUrl("https://omni.example/%PATH%")).toBe(false);
+    expect(isSafeRemoteUrl("https://omni.example/a%20b")).toBe(false);
   });
 });
 

@@ -207,10 +207,10 @@ export function toUsageView(
     ...snapshot,
     quotas: snapshot.quotas
       ? Object.fromEntries(
-          Object.entries(snapshot.quotas).map(([name, quota]) => [
-            name,
-            quotaView(name, quota, now, t),
-          ])
+          Object.entries(snapshot.quotas)
+            // A window that is not an object is skipped rather than hiding the section.
+            .filter(([, quota]) => typeof quota === "object" && quota !== null)
+            .map(([name, quota]) => [name, quotaView(name, quota, now, t)])
         )
       : undefined,
   }));

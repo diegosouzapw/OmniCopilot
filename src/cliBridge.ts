@@ -71,8 +71,9 @@ export function resolveCliCommand(
   return COMMAND_WITH_ARGS.test(value) ? { ok: true, command: value } : { ok: false };
 }
 
-/** Characters that mean something to a POSIX shell, PowerShell or cmd.exe. */
-const SHELL_SYNTAX = /[\s$`"'<>|&;(){}\\]/;
+/** Characters that mean something to a POSIX shell, PowerShell or cmd.exe
+ * (which expands `%VAR%` even inside double quotes). */
+const SHELL_SYNTAX = /[\s$`"'<>|&;(){}\\%]/;
 
 function hasShellSyntax(value: string): boolean {
   return (
@@ -84,8 +85,8 @@ function hasShellSyntax(value: string): boolean {
 /**
  * The server root as passed to `--remote`: re-serialised by the WHATWG parser,
  * without a trailing slash. Undefined when it is not an http(s) URL, or when the
- * value or its serialisation carries whitespace, a control character or shell
- * syntax, since it is typed into a terminal.
+ * value or its serialisation carries whitespace, a control character, shell
+ * syntax or `%`, since it is typed into a terminal.
  */
 export function remoteUrlArgument(root: string): string | undefined {
   if (hasShellSyntax(root)) return undefined;

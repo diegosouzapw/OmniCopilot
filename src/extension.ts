@@ -33,6 +33,10 @@ export function activate(context: vscode.ExtensionContext): void {
   const log = vscode.window.createOutputChannel("OmniRoute for Copilot", { log: true });
   context.subscriptions.push(log);
   log.info(`Activating v${context.extension.packageJSON.version}`);
+  /** Start a promise nobody waits for, logging instead of leaving a rejection unhandled. */
+  const background = (what: string, promise: Promise<unknown> | undefined): void => {
+    void promise?.catch((err: unknown) => log.warn(`${what} failed: ${String(err)}`));
+  };
 
   statusBar = new ConnectionStatusBar(
     () => makeClient(context),
@@ -41,7 +45,7 @@ export function activate(context: vscode.ExtensionContext): void {
     () => resolveConnection(context),
     // The model picker is empty when the server was down at startup; list again once a poll
     // finds it accepting requests.
-    () => void provider?.refresh()
+    () => background("Model refresh", provider?.refresh())
   );
   context.subscriptions.push(statusBar);
 
@@ -80,20 +84,16 @@ export function activate(context: vscode.ExtensionContext): void {
       if (!e.affectsConfiguration("omnicopilot")) return;
       log.info("Configuration changed — refreshing models and status");
       statusBar?.restart();
-      void provider?.refresh();
-      void panel?.refreshStatus();
+      background("Model refresh", provider?.refresh());
+      background("Panel refresh", panel?.refreshStatus());
       withheldKeyWatcher.schedule();
-      void showIgnoredWorkspaceUrlNotice(context).catch((err: unknown) =>
-        log.warn(`Workspace URL check failed: ${String(err)}`)
-      );
+      background("Workspace URL check", showIgnoredWorkspaceUrlNotice(context));
     })
   );
 
   statusBar.start();
-  void showIgnoredWorkspaceUrlNotice(context).catch((err: unknown) =>
-    log.warn(`Workspace URL check failed: ${String(err)}`)
-  );
-  void checkFirstRun(context, log);
+  background("Workspace URL check", showIgnoredWorkspaceUrlNotice(context));
+  background("First-run check", checkFirstRun(context, log));
 }
 
 function registerCommands(context: vscode.ExtensionContext, log: vscode.LogOutputChannel): void {

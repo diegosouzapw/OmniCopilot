@@ -141,9 +141,12 @@ export class OmniPanelProvider implements vscode.WebviewViewProvider {
           await rebindApiKey(this.context, url);
         }
 
-        await vscode.workspace
-          .getConfiguration("omnicopilot")
-          .update("baseUrl", url, vscode.ConfigurationTarget.Global);
+        // An unchanged URL is not written again (Save with only a new key).
+        if (url !== serverRootUrl((await resolveConnection(this.context)).baseUrl)) {
+          await vscode.workspace
+            .getConfiguration("omnicopilot")
+            .update("baseUrl", url, vscode.ConfigurationTarget.Global);
+        }
 
         await this.onSettingsSaved();
         await this.refreshStatus();
