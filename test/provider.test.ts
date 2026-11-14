@@ -209,6 +209,67 @@ describe("provider chat path", () => {
   });
 });
 
+describe("provider catalog", () => {
+  let fetchMock: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  function catalog(data: unknown[]): Response {
+    return new Response(JSON.stringify({ object: "list", data }), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
+  }
+
+  it("lists models with the name and limits OmniRoute really sends", async () => {
+    fetchMock.mockResolvedValue(
+      catalog([
+        { id: "x/y", name: "Y Pro", context_length: 200_000, max_output_tokens: 8_192, max_input_tokens: 150_000 },
+      ])
+    );
+    const { provider, token } = makeProvider();
+    const [info] = await provider.provideLanguageModelChatInformation({ silent: true }, token);
+    expect(info.name).toBe("Y Pro");
+    expect(info.maxOutputTokens).toBe(8_192);
+    expect(info.maxInputTokens).toBe(150_000);
+  });
+
+  it("keeps half of a small context window for the prompt", async () => {
+    fetchMock.mockResolvedValue(catalog([{ id: "tiny", context_length: 8_192 }]));
+    const { provider, token } = makeProvider();
+    const [info] = await provider.provideLanguageModelChatInformation({ silent: true }, token);
+    expect(info.maxOutputTokens).toBe(4_096);
+    expect(info.maxInputTokens).toBe(4_096);
+  });
+
+  it("sends max as its own tier and honours tiers the model advertises", async () => {
+    fetchMock.mockResolvedValueOnce(
+      catalog([{ id: "r", capabilities: { reasoning: true, effort_tiers: ["low", "high", "max"] } }])
+    );
+    const { provider, progress, token } = makeProvider({ config: { defaultReasoningEffort: "max" } });
+    await provider.provideLanguageModelChatInformation({ silent: true }, token);
+    fetchMock.mockResolvedValueOnce(sseResponse([{ choices: [{ delta: { content: "ok" } }] }]));
+    await provider.provideLanguageModelChatResponse(
+      { ...(modelInfo(false) as object), id: "r", omniModelId: "r" } as never,
+      [
+        {
+          role: vscode.LanguageModelChatMessageRole.User,
+          content: [new vscode.LanguageModelTextPart("go")],
+        } as never,
+      ],
+      { tools: [], toolMode: 1 } as never,
+      progress,
+      token
+    );
+    const init = fetchMock.mock.calls[1][1] as RequestInit;
+    expect(JSON.parse(init.body as string).reasoning_effort).toBe("max");
+  });
+});
+
 describe("provider test harness", () => {
   it("offers secrets, globalState and workspaceState backed by maps", async () => {
     const { context } = makeProvider();

@@ -3,6 +3,7 @@ import { expandForAgentsWindow } from "./agentsWindow";
 import { selectChatModels } from "./catalogFilter";
 import { DEFAULT_BASE_URL, OmniRouteClient } from "./client";
 import { estimateTokens, toOpenAiMessages, toOpenAiTools } from "./convert";
+import { describeModel } from "./modelInfo";
 import { isReasoningModel, resolveReasoningEffort } from "./reasoning";
 import { createToolNameAliases } from "./toolNames";
 import type { ChatRequest, OmniRouteModel, StreamUsage } from "./types";
@@ -53,6 +54,8 @@ export class OmniRouteChatProvider
    * catalog. Chat requests consult it before applying the configured default
    * effort — the request itself carries no capability information. */
   private reasoningModelIds = new Set<string>();
+  /** Tiers each model advertises (`capabilities.effort_tiers`), by id. */
+  private effortTiersById = new Map<string, string[]>();
 
   constructor(private readonly deps: ProviderDeps) {}
 
@@ -64,6 +67,7 @@ export class OmniRouteChatProvider
   async refresh(): Promise<void> {
     this.cachedModels = [];
     this.reasoningModelIds.clear();
+    this.effortTiersById.clear();
     this._onDidChange.fire();
   }
 
@@ -119,26 +123,30 @@ export class OmniRouteChatProvider
 
     const infos: OmniModelInfo[] = [];
     this.reasoningModelIds.clear();
+    this.effortTiersById.clear();
     for (const model of selectChatModels(models)) {
       if (filter && !filter.test(model.id)) continue;
       if (isReasoningModel(model)) this.reasoningModelIds.add(model.id);
 
-      const contextLength = model.context_length ?? defaultContext;
-      const maxOutputTokens = Math.min(model.max_completion_tokens ?? maxOutput, maxOutput);
+      const described = describeModel(model, {
+        maxOutputTokens: maxOutput,
+        defaultContextLength: defaultContext,
+      });
+      if (described.effortTiers) this.effortTiersById.set(model.id, described.effortTiers);
       const caps = model.capabilities ?? {};
       const isCombo = model.owned_by === "combo";
 
       infos.push({
         id: model.id,
-        name: model.display_name?.trim() || model.id,
+        name: described.name,
         family: model.owned_by || "omniroute",
         version: "1.0.0",
         detail: isCombo ? "combo" : model.owned_by,
         tooltip: isReasoningModel(model)
           ? `OmniRoute · ${model.id} · extended thinking`
           : `OmniRoute · ${model.id}`,
-        maxInputTokens: Math.max(contextLength - maxOutputTokens, 1024),
-        maxOutputTokens,
+        maxInputTokens: described.maxInputTokens,
+        maxOutputTokens: described.maxOutputTokens,
         capabilities: {
           // Catalog knows tool_calling/vision per model; default to tools ON
           // (agent mode is the whole point) when the field is absent.
@@ -217,6 +225,7 @@ export class OmniRouteChatProvider
       modelOptions,
       configuredDefault: getConfig().get<string>("defaultReasoningEffort", ""),
       modelIsReasoning: this.reasoningModelIds.has(model.omniModelId),
+      modelTiers: this.effortTiersById.get(model.omniModelId),
     });
     if (effort) request.reasoning_effort = effort;
 
