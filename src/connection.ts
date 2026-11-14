@@ -219,10 +219,13 @@ export async function storeApiKey(
   baseUrl?: string
 ): Promise<void> {
   const origin = originOf(baseUrl ?? configuredBaseUrl());
-  // The list first: in between, the old key is approved for fewer origins, never
-  // the new key for the old key's origins, and never a key without a list.
-  await writeApprovedOrigins(context, [origin]);
+  // Fail-closed at every step: first an empty list (whichever key is stored is
+  // withheld everywhere), then the new key, then its one approved origin. The old
+  // key is never approved for the new origin, nor the new key for the old ones,
+  // and a key is never left without a list (which would read as pre-1.4.0).
+  await writeApprovedOrigins(context, []);
   await context.secrets.store(SECRET_API_KEY, key);
+  await writeApprovedOrigins(context, [origin]);
   await warnIfInsecure(context, origin);
 }
 
