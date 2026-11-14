@@ -23,8 +23,15 @@ export interface UsageLimitStatus {
 export interface UsageQuotaWindow {
   used?: number;
   total?: number;
+  usedPercentage?: number;
+  /** A percentage for some providers, a currency balance or an absolute count
+   * for others — never read it on its own without the rules in
+   * `quotaRemainingPercent`. */
   remaining?: number;
   remainingPercentage?: number;
+  unlimited?: boolean;
+  currency?: string;
+  displayName?: string;
   resetAt?: string | null;
 }
 
@@ -35,13 +42,23 @@ export interface UsageSnapshot {
   quotas?: Record<string, UsageQuotaWindow>;
 }
 
+/** A quota window with everything the webview prints already resolved on the
+ * host: the script does no arithmetic of its own. */
+export type UsageQuotaView = UsageQuotaWindow & {
+  percentLeft: number | null;
+  unlimited: boolean;
+  resetIn: string | null;
+};
+
 export type UsageLimitView = UsageLimitStatus & {
-  dailyResetIn: string;
+  dailyPercentLeft: number | null;
+  weeklyPercentLeft: number | null;
+  dailyResetIn: string | null;
   weeklyResetIn: string | null;
 };
 
 export type UsageSnapshotView = Omit<UsageSnapshot, "quotas"> & {
-  quotas?: Record<string, UsageQuotaWindow & { resetIn: string | null }>;
+  quotas?: Record<string, UsageQuotaView>;
 };
 
 /** Refusals carry only an error; success carries the data. A panel must never
@@ -87,6 +104,13 @@ export function formatResetIn(resetAtIso: string | null | undefined, now = Date.
   return `${minutes}m`;
 }
 
+/** The countdown for a panel row, or null when there is nothing worth saying:
+ * the reset time is unknown or has already passed. */
+export function resetLabel(resetAtIso: string | null | undefined, now = Date.now()): string | null {
+  const label = formatResetIn(resetAtIso, now);
+  return label === "unknown" || label === "now" ? null : label;
+}
+
 /** Percent of the limit still available, for the personal USD rows. */
 export function percentLeft(spent: number, limit: number | null): number | null {
   if (typeof limit !== "number" || !Number.isFinite(limit) || limit <= 0) return null;
@@ -102,16 +126,16 @@ export function toUsageView(body: UsageResponse, now = Date.now()): UsageView {
     : body.provider
       ? [body.provider]
       : [];
-  const personal = body.personal
+  const personal: UsageLimitView | null = body.personal
     ? {
         ...body.personal,
-        dailyResetIn: formatResetIn(body.personal.dailyResetAtIso, now),
-        weeklyResetIn: body.personal.weeklyResetAtIso
-          ? formatResetIn(body.personal.weeklyResetAtIso, now)
-          : null,
+        dailyPercentLeft: percentLeft(body.personal.dailySpentUsd, body.personal.dailyLimitUsd),
+        weeklyPercentLeft: percentLeft(body.personal.weeklySpentUsd, body.personal.weeklyLimitUsd),
+        dailyResetIn: resetLabel(body.personal.dailyResetAtIso, now),
+        weeklyResetIn: resetLabel(body.personal.weeklyResetAtIso, now),
       }
     : null;
-  const providers = snapshots.map((snapshot) => ({
+  const providers: UsageSnapshotView[] = snapshots.map((snapshot) => ({
     ...snapshot,
     quotas: snapshot.quotas
       ? Object.fromEntries(
@@ -119,8 +143,10 @@ export function toUsageView(body: UsageResponse, now = Date.now()): UsageView {
             name,
             {
               ...quota,
-              resetIn: quota.resetAt ? formatResetIn(quota.resetAt, now) : null,
-            },
+              percentLeft: quotaRemainingPercent(quota),
+              unlimited: quota.unlimited === true,
+              resetIn: resetLabel(quota.resetAt, now),
+            } satisfies UsageQuotaView,
           ])
         )
       : undefined,
@@ -158,16 +184,46 @@ export async function fetchUsage(
   }
 }
 
+/** Same coercion as the server's `toNumber`: finite numbers and numeric
+ * strings count, everything else is "absent". */
+function toNumber(value: unknown): number {
+  if (typeof value === "number") return Number.isFinite(value) ? value : Number.NaN;
+  if (typeof value === "string" && value.trim()) return Number(value);
+  return Number.NaN;
+}
+
+const clampPercent = (value: number): number => Math.max(0, Math.min(100, value));
+
 /** Percentage of a quota window still available, or null when unknowable.
- * Providers differ: some send `remainingPercentage`, some only `used`/`total`,
- * some only `remaining`. Clamped to 0–100. */
+ *
+ * Mirrors the server's `getQuotaUsedPercent`
+ * (OmniRoute `src/lib/usage/internalUsageCommand.ts`), in the same order, then
+ * converts "used" to "left". The unit of `remaining` is not fixed — a
+ * percentage, a currency balance or an absolute count depending on the
+ * provider — so it only counts when it already sits between 0 and 100; so
+ * does `used`. Anything else is null rather than a guess. */
 export function quotaRemainingPercent(q: UsageQuotaWindow): number | null {
-  let pct: number | null = null;
-  if (typeof q.remainingPercentage === "number") pct = q.remainingPercentage;
-  else if (typeof q.total === "number" && q.total > 0 && typeof q.used === "number")
-    pct = (1 - q.used / q.total) * 100;
-  else if (typeof q.remaining === "number") pct = q.remaining;
-  return pct === null || !Number.isFinite(pct) ? null : Math.max(0, Math.min(100, Math.round(pct)));
+  const used = ((): number | null => {
+    const usedPercentage = toNumber(q.usedPercentage);
+    if (Number.isFinite(usedPercentage)) return clampPercent(usedPercentage);
+
+    const spent = toNumber(q.used);
+    const total = toNumber(q.total);
+    if (Number.isFinite(spent) && Number.isFinite(total) && total > 0) {
+      return clampPercent((spent / total) * 100);
+    }
+    if (Number.isFinite(spent) && spent >= 0 && spent <= 100) return spent;
+
+    const remainingPercentage = toNumber(q.remainingPercentage);
+    if (Number.isFinite(remainingPercentage)) return clampPercent(100 - remainingPercentage);
+
+    const remaining = toNumber(q.remaining);
+    if (Number.isFinite(remaining) && remaining >= 0 && remaining <= 100) {
+      return clampPercent(100 - remaining);
+    }
+    return null;
+  })();
+  return used === null ? null : Math.round(clampPercent(100 - used));
 }
 
 /** Mime type VS Code's Copilot Chat reads from a language-model response to

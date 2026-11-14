@@ -205,6 +205,8 @@ export class OmniPanelProvider implements vscode.WebviewViewProvider {
       usageDaily: t("Daily"),
       usageWeekly: t("Weekly"),
       usageResetsIn: t("resets in {0}"),
+      usagePercentLeft: t("{0}% left"),
+      usageUnlimited: t("unlimited"),
       usageDisabled: t("Usage is not enabled for this key. An admin can turn on the usage command for it in OmniRoute."),
       usageEmpty: t("Usage is reported, but nothing is cached yet — it fills in after the first requests."),
     };
@@ -336,14 +338,12 @@ export class OmniPanelProvider implements vscode.WebviewViewProvider {
           const pers = u.personal;
           if (pers) {
             const usd = (v) => (typeof v === "number" ? "$" + v.toFixed(2) : "—");
-            const left = (spent, limit) =>
-              typeof limit === "number" && limit > 0
-                ? " (" + Math.max(0, Math.round((1 - spent / limit) * 100)) + "% left)"
-                : "";
+            const left = (percent) =>
+              typeof percent === "number" ? " (" + S.usagePercentLeft.replace("{0}", String(percent)) + ")" : "";
             if (pers.dailyLimitUsd !== null)
-              line(S.usageDaily, usd(pers.dailySpentUsd) + " / " + usd(pers.dailyLimitUsd) + left(pers.dailySpentUsd, pers.dailyLimitUsd) + reset(pers.dailyResetIn));
+              line(S.usageDaily, usd(pers.dailySpentUsd) + " / " + usd(pers.dailyLimitUsd) + left(pers.dailyPercentLeft) + reset(pers.dailyResetIn));
             if (pers.weeklyLimitUsd !== null)
-              line(S.usageWeekly, usd(pers.weeklySpentUsd) + " / " + usd(pers.weeklyLimitUsd) + left(pers.weeklySpentUsd, pers.weeklyLimitUsd) + reset(pers.weeklyResetIn));
+              line(S.usageWeekly, usd(pers.weeklySpentUsd) + " / " + usd(pers.weeklyLimitUsd) + left(pers.weeklyPercentLeft) + reset(pers.weeklyResetIn));
           }
           const providers = Array.isArray(u.providers) ? u.providers : [];
           if (providers.length === 0 && !pers) {
@@ -352,14 +352,14 @@ export class OmniPanelProvider implements vscode.WebviewViewProvider {
             for (const snap of providers) {
               const windows = Object.entries(snap.quotas ?? {});
               for (const [name, q] of windows) {
-                // Providers differ: remainingPercentage, used/total, or remaining.
-                let pct = null;
-                if (typeof q.remainingPercentage === "number") pct = q.remainingPercentage;
-                else if (typeof q.total === "number" && q.total > 0 && typeof q.used === "number") pct = (1 - q.used / q.total) * 100;
-                else if (typeof q.remaining === "number") pct = q.remaining;
-                const rem = pct === null ? "" : Math.max(0, Math.min(100, Math.round(pct))) + "% left";
+                // The host already resolved percentLeft/unlimited/resetIn.
+                const rem = q.unlimited
+                  ? S.usageUnlimited
+                  : typeof q.percentLeft === "number"
+                    ? S.usagePercentLeft.replace("{0}", String(q.percentLeft))
+                    : "—";
                 const label = snap.provider + (windows.length > 1 ? " · " + name : "");
-                line(label, (rem || "—") + reset(q.resetIn));
+                line(label, rem + reset(q.resetIn));
               }
             }
           }
