@@ -1,4 +1,5 @@
 import { randomBytes } from "node:crypto";
+import { classifyNetworkError, type ProbeFailure, type ProbeResult } from "./diagnostics";
 import { isFramingAllowed } from "./embed";
 import { parseRetryAfter, retryDelayFromMessage } from "./retry";
 import type {
@@ -77,19 +78,50 @@ export class OmniRouteClient {
     return normalizeBaseUrl(this.opts.baseUrl);
   }
 
-  /** Fast availability probe. OmniRoute serves HEAD /v1/models explicitly. */
+  /** Fast availability probe: `HEAD /v1/models`, which OmniRoute serves explicitly. */
   async ping(timeoutMs = 4000): Promise<boolean> {
+    return (await this.probe(timeoutMs)).ok;
+  }
+
+  /** Same probe as `ping`, but says why it failed. A server that answers 404,
+   * 405 or 501 to HEAD (an OpenAI-compatible server without it) gets one GET. */
+  async probe(timeoutMs = 4000): Promise<ProbeResult> {
+    let attempt = await this.probeOnce("HEAD", timeoutMs);
+    if (
+      "status" in attempt &&
+      (attempt.status === 404 || attempt.status === 405 || attempt.status === 501)
+    ) {
+      attempt = await this.probeOnce("GET", timeoutMs);
+    }
+    if ("failure" in attempt) return { ok: false, ...attempt };
+    const { status } = attempt;
+    if ((status >= 200 && status < 300) || status === 401 || status === 403) {
+      return { ok: true, status };
+    }
+    return { ok: false, failure: "http", status };
+  }
+
+  private async probeOnce(
+    method: "HEAD" | "GET",
+    timeoutMs: number
+  ): Promise<{ status: number } | { failure: ProbeFailure; code?: string }> {
     const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+    let timedOut = false;
+    const timer = setTimeout(() => {
+      timedOut = true;
+      ctrl.abort();
+    }, timeoutMs);
     try {
       const res = await fetch(`${this.baseUrl}/models`, {
-        method: "HEAD",
+        method,
         headers: headers(this.opts.apiKey, false),
         signal: ctrl.signal,
       });
-      return res.ok || res.status === 401 || res.status === 403;
-    } catch {
-      return false;
+      // Only the status matters; do not hold the connection open for a body.
+      void res.body?.cancel().catch(() => undefined);
+      return { status: res.status };
+    } catch (err) {
+      return classifyNetworkError(err, timedOut);
     } finally {
       clearTimeout(timer);
     }

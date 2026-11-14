@@ -1,5 +1,9 @@
 import * as vscode from "vscode";
 import { DEFAULT_BASE_URL, OmniRouteClient, serverRootUrl } from "./client";
+import { describeProbeFailure, keyWithheldMessage, type Connection } from "./connection";
+import type { ProbeResult } from "./diagnostics";
+
+const PROBE_TIMEOUT_MS = 4000;
 
 type Status = "online" | "offline" | "checking";
 
@@ -10,10 +14,13 @@ export class ConnectionStatusBar implements vscode.Disposable {
   private timer: ReturnType<typeof setInterval> | undefined;
   private status: Status = "checking";
   private disposed = false;
+  private lastFailure: string | undefined;
+  private keyNote: string | undefined;
 
   constructor(
     private readonly getClient: () => Promise<OmniRouteClient>,
-    private readonly log: vscode.LogOutputChannel
+    private readonly log: vscode.LogOutputChannel,
+    private readonly getConnection?: () => Promise<Connection>
   ) {
     this.item = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 90);
     this.item.name = "OmniRoute";
@@ -29,14 +36,25 @@ export class ConnectionStatusBar implements vscode.Disposable {
 
   /** Feed request outcomes from the provider so the dot reacts instantly. */
   reportActivity(ok: boolean): void {
+    if (ok) this.lastFailure = undefined;
     this.setStatus(ok ? "online" : "offline");
+  }
+
+  /** Why the last check failed, in one sentence; undefined while the server answers. */
+  get failureSummary(): string | undefined {
+    return this.status === "offline" ? this.lastFailure : undefined;
   }
 
   async checkNow(): Promise<boolean> {
     const client = await this.getClient();
-    const ok = await client.ping();
-    this.setStatus(ok ? "online" : "offline");
-    return ok;
+    const connection = await this.getConnection?.();
+    this.keyNote = connection ? keyWithheldMessage(connection) : undefined;
+    const result: ProbeResult = await client.probe(PROBE_TIMEOUT_MS);
+    this.lastFailure = result.ok
+      ? undefined
+      : describeProbeFailure(client.baseUrl, result, PROBE_TIMEOUT_MS).summary;
+    this.setStatus(result.ok ? "online" : "offline");
+    return result.ok;
   }
 
   restart(): void {
@@ -59,7 +77,7 @@ export class ConnectionStatusBar implements vscode.Disposable {
     this.timer = setInterval(() => void this.checkNow(), Math.max(seconds, 5) * 1000);
   }
 
-  private setStatus(status: Status): void {
+  private setStatus(status: "online" | "offline"): void {
     if (this.disposed || status === this.status) {
       if (!this.disposed) this.render();
       return;
@@ -77,13 +95,18 @@ export class ConnectionStatusBar implements vscode.Disposable {
         this.item.text = "$(circle-filled) OmniRoute";
         this.item.color = new vscode.ThemeColor("testing.iconPassed");
         this.item.backgroundColor = undefined;
-        this.item.tooltip = vscode.l10n.t("OmniRoute online — {0}. Click for actions.", root);
+        this.item.tooltip = this.tooltip(
+          vscode.l10n.t("OmniRoute online — {0}. Click for actions.", root)
+        );
         break;
       case "offline":
         this.item.text = "$(circle-outline) OmniRoute";
         this.item.color = undefined;
         this.item.backgroundColor = new vscode.ThemeColor("statusBarItem.warningBackground");
-        this.item.tooltip = vscode.l10n.t("OmniRoute unreachable — {0}. Click for actions.", root);
+        this.item.tooltip = this.tooltip(
+          vscode.l10n.t("OmniRoute unreachable — {0}. Click for actions.", root),
+          this.lastFailure
+        );
         break;
       default:
         this.item.text = "$(sync~spin) OmniRoute";
@@ -91,6 +114,10 @@ export class ConnectionStatusBar implements vscode.Disposable {
         this.item.backgroundColor = undefined;
         this.item.tooltip = vscode.l10n.t("Checking OmniRoute connection…");
     }
+  }
+
+  private tooltip(...lines: Array<string | undefined>): string {
+    return [...lines, this.keyNote].filter((line): line is string => Boolean(line)).join("\n");
   }
 
   dispose(): void {
