@@ -4,6 +4,7 @@ import { selectChatModels } from "./catalogFilter";
 import { DEFAULT_BASE_URL, OmniRouteClient } from "./client";
 import { estimateTokens, toOpenAiMessages, toOpenAiTools } from "./convert";
 import { isReasoningModel, resolveReasoningEffort } from "./reasoning";
+import { createToolNameAliases } from "./toolNames";
 import type { ChatRequest, OmniRouteModel, StreamUsage } from "./types";
 import { USAGE_MIME_TYPE, buildUsagePayload } from "./usage";
 
@@ -23,6 +24,18 @@ export interface ProviderDeps {
   /** Called whenever a request round-trip settles, with success flag —
    * feeds the status bar without extra polling. */
   onActivity?: (ok: boolean) => void;
+}
+
+/** Names of the tools the conversation has already called. */
+function historicalToolNames(messages: readonly vscode.LanguageModelChatRequestMessage[]): string[] {
+  const names: string[] = [];
+  for (const message of messages) {
+    if (!Array.isArray(message.content)) continue;
+    for (const part of message.content) {
+      if (part instanceof vscode.LanguageModelToolCallPart) names.push(part.name);
+    }
+  }
+  return names;
 }
 
 function getConfig() {
@@ -169,12 +182,22 @@ export class OmniRouteChatProvider
     const client = await this.makeClient();
     const log = this.deps.log;
 
+    // Tool names over the wire limit are shortened; the editor still sees (and
+    // later replays) the original names, so remember the way back.
+    const aliases = createToolNameAliases([
+      ...(options.tools ?? []).map((tool) => tool.name),
+      ...historicalToolNames(messages),
+    ]);
+
     const request: ChatRequest = {
       model: model.omniModelId,
-      messages: toOpenAiMessages(messages, { imageInput: model.capabilities?.imageInput === true }),
+      messages: toOpenAiMessages(messages, {
+        imageInput: model.capabilities?.imageInput === true,
+        toolName: aliases.toWire,
+      }),
       stream: true,
       stream_options: { include_usage: true },
-      tools: toOpenAiTools(options.tools),
+      tools: toOpenAiTools(options.tools, aliases.toWire),
     };
 
     if (options.toolMode === vscode.LanguageModelChatToolMode.Required) {
@@ -223,7 +246,9 @@ export class OmniRouteChatProvider
             log.warn(`Tool call ${event.name} had invalid JSON args; sending {}`);
             input = {};
           }
-          progress.report(new vscode.LanguageModelToolCallPart(event.id, event.name, input));
+          progress.report(
+            new vscode.LanguageModelToolCallPart(event.id, aliases.fromWire(event.name), input)
+          );
         }
       }
       if (!token.isCancellationRequested) {

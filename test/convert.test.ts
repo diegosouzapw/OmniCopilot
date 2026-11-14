@@ -268,6 +268,23 @@ function toolResultPart(...content: unknown[]): vscode.LanguageModelToolResultPa
   return new vscode.LanguageModelToolResultPart("call_1", content);
 }
 
+describe("tool-name aliasing in conversion", () => {
+  it("aliases tool names in tools[] and in historical tool_calls[]", () => {
+    const toWire = (n: string) => "x_" + n;
+    const tools = toOpenAiTools([{ name: "run", description: "d", inputSchema: {} }], toWire);
+    expect(tools?.[0].function.name).toBe("x_run");
+    const out = toOpenAiMessages(
+      [
+        msg(vscode.LanguageModelChatMessageRole.Assistant, [
+          new vscode.LanguageModelToolCallPart("call_1", "run", {}),
+        ]),
+      ],
+      { toolName: toWire }
+    );
+    expect(out[0].tool_calls?.[0].function.name).toBe("x_run");
+  });
+});
+
 describe("URL normalization", () => {
   it("appends /v1 and strips trailing slashes", () => {
     expect(normalizeBaseUrl("http://localhost:20128")).toBe("http://localhost:20128/v1");

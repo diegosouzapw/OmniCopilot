@@ -12,6 +12,8 @@ export interface ConvertOptions {
   /** Whether the target model accepts images. Images returned by tools are
    * attached to the request only when it does. Defaults to false. */
   imageInput?: boolean;
+  /** Maps an editor-side tool name to the name sent on the wire. */
+  toolName?: (name: string) => string;
 }
 
 export function toOpenAiMessages(
@@ -20,6 +22,7 @@ export function toOpenAiMessages(
 ): ChatMessage[] {
   const out: ChatMessage[] = [];
   const imageInput = options.imageInput === true;
+  const toolName = options.toolName ?? ((name: string) => name);
 
   for (const msg of messages) {
     const parts = Array.isArray(msg.content) ? msg.content : [];
@@ -59,7 +62,7 @@ export function toOpenAiMessages(
             id: tc.callId,
             type: "function" as const,
             function: {
-              name: tc.name,
+              name: toolName(tc.name),
               arguments: typeof tc.input === "string" ? tc.input : JSON.stringify(tc.input ?? {}),
             },
           })),
@@ -212,13 +215,14 @@ export function extractToolResultText(content: unknown): string {
 }
 
 export function toOpenAiTools(
-  tools: readonly vscode.LanguageModelChatTool[] | undefined
+  tools: readonly vscode.LanguageModelChatTool[] | undefined,
+  toolName: (name: string) => string = (name) => name
 ): ChatTool[] | undefined {
   if (!tools?.length) return undefined;
   return tools.map((t) => ({
     type: "function" as const,
     function: {
-      name: t.name,
+      name: toolName(t.name),
       description: t.description,
       parameters: (t.inputSchema ?? { type: "object", properties: {} }) as Record<string, unknown>,
     },
