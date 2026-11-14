@@ -24,6 +24,20 @@ export function toOpenAiMessages(
   const imageInput = options.imageInput === true;
   const toolName = options.toolName ?? ((name: string) => name);
 
+  // A run of consecutive messages that carry tool results must stay contiguous
+  // on the wire: every `tool` message directly follows the assistant message
+  // whose calls it answers. What those messages carried besides results, and
+  // the images the tools returned, wait here and go out as one `user` message
+  // once the run ends.
+  let pendingOwn: ChatContentPart[] = [];
+  let pendingImages: ChatContentPart[] = [];
+  const flushRun = () => {
+    const followUp = withToolImages(pendingOwn, pendingImages);
+    pendingOwn = [];
+    pendingImages = [];
+    if (!isEmptyContent(followUp)) out.push({ role: "user", content: followUp });
+  };
+
   for (const msg of messages) {
     const parts = Array.isArray(msg.content) ? msg.content : [];
 
@@ -32,17 +46,15 @@ export function toOpenAiMessages(
         p instanceof vscode.LanguageModelToolResultPart
     );
     if (toolResults.length > 0) {
-      const toolImages: ChatContentPart[] = [];
       for (const result of toolResults) {
         const rendered = renderToolResult(result.content, { imageInput });
-        toolImages.push(...rendered.images);
+        pendingImages.push(...rendered.images);
         out.push({ role: "tool", content: rendered.text, tool_call_id: result.callId });
       }
-      const rest = toContent(parts);
-      const followUp = withToolImages(rest, toolImages);
-      if (!isEmptyContent(followUp)) out.push({ role: "user", content: followUp });
+      pendingOwn.push(...asContentParts(toContent(parts)));
       continue;
     }
+    flushRun();
 
     if (msg.role === vscode.LanguageModelChatMessageRole.Assistant) {
       const toolCalls = parts.filter(
@@ -76,23 +88,27 @@ export function toOpenAiMessages(
       out.push({ role: mapRole(msg.role), content });
     }
   }
+  flushRun();
 
   return out;
 }
 
-/** Message content followed by images that tools returned. Without images the
- * content is unchanged; without other content a short caption introduces them. */
+function asContentParts(content: string | ChatContentPart[]): ChatContentPart[] {
+  if (typeof content !== "string") return content;
+  return content.trim() ? [{ type: "text", text: content }] : [];
+}
+
+/** What a run of tool-result messages carried besides the results, followed by
+ * the images the tools returned. Without images that is the content alone (a
+ * plain string when it is a single text); without other content a short
+ * caption introduces the images. */
 function withToolImages(
-  content: string | ChatContentPart[],
+  own: ChatContentPart[],
   images: ChatContentPart[]
 ): string | ChatContentPart[] {
-  if (images.length === 0) return content;
-  const own: ChatContentPart[] =
-    typeof content === "string"
-      ? content.trim()
-        ? [{ type: "text", text: content }]
-        : []
-      : content;
+  if (images.length === 0) {
+    return own.length === 1 && own[0].type === "text" ? own[0].text : own;
+  }
   const lead: ChatContentPart[] = isEmptyContent(own)
     ? [{ type: "text", text: "Images returned by the tool call above:" }]
     : own;
