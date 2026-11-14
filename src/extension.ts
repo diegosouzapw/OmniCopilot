@@ -1,7 +1,13 @@
 import * as vscode from "vscode";
 import { OmniRouteClient, serverRootUrl } from "./client";
 import { configureCliTool } from "./cliBridge";
-import { SECRET_API_KEY, clearApiKey, resolveConnection, storeApiKey } from "./connection";
+import {
+  SECRET_API_KEY,
+  clearApiKey,
+  resolveConnection,
+  showUpgradeNoticeOnce,
+  storeApiKey,
+} from "./connection";
 import { OmniPanelProvider } from "./panel";
 import { OmniRouteChatProvider } from "./provider";
 import { ConnectionStatusBar } from "./statusBar";
@@ -68,6 +74,8 @@ export function activate(context: vscode.ExtensionContext): void {
   );
 
   statusBar.start();
+  // Before the first-run welcome, which marks a fresh install as welcomed.
+  void showUpgradeNoticeOnce(context);
   void checkFirstRun(context, log);
 }
 

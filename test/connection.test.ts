@@ -1,5 +1,38 @@
-import { describe, expect, it } from "vitest";
-import { decideKeyUse, isLoopbackOrigin, originOf } from "../src/connection";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import * as vscode from "vscode";
+import { setMockConfig } from "./vscode.mock";
+import {
+  SECRET_API_KEY,
+  decideKeyUse,
+  isLoopbackOrigin,
+  originOf,
+  showUpgradeNoticeOnce,
+  upgradeNotice,
+} from "../src/connection";
+
+/** An extension context whose SecretStorage and globalState are plain maps. */
+function fakeContext(state: Record<string, unknown> = {}) {
+  const secrets = new Map<string, string>();
+  const global = new Map<string, unknown>(Object.entries(state));
+  const context = {
+    secrets: {
+      get: async (key: string) => secrets.get(key),
+      store: async (key: string, value: string) => void secrets.set(key, value),
+      delete: async (key: string) => void secrets.delete(key),
+    },
+    globalState: {
+      get: <T>(key: string, fallback?: T) => (global.has(key) ? (global.get(key) as T) : fallback),
+      update: async (key: string, value: unknown) => {
+        if (value === undefined) global.delete(key);
+        else global.set(key, value);
+      },
+    },
+  };
+  return Object.assign(context as unknown as vscode.ExtensionContext, {
+    secretMap: secrets,
+    stateMap: global,
+  });
+}
 
 describe("originOf", () => {
   it.each([
@@ -84,5 +117,74 @@ describe("decideKeyUse", () => {
         currentOrigin: "https://evil.example",
       })
     ).toEqual({ apiKey: undefined, keyWithheld: true, bindNow: false });
+  });
+});
+
+describe("upgradeNotice", () => {
+  it("says nothing on a fresh install", () => {
+    expect(upgradeNotice({ welcomed: false, noticeVersion: undefined, hasStoredKey: true })).toBe("none");
+    expect(upgradeNotice({ welcomed: false, noticeVersion: undefined, hasStoredKey: false })).toBe("none");
+  });
+
+  it("announces the change once to an existing install, naming the key when one is stored", () => {
+    expect(upgradeNotice({ welcomed: true, noticeVersion: undefined, hasStoredKey: true })).toBe("with-key");
+    expect(upgradeNotice({ welcomed: true, noticeVersion: undefined, hasStoredKey: false })).toBe(
+      "without-key"
+    );
+    expect(upgradeNotice({ welcomed: true, noticeVersion: "1.3.0", hasStoredKey: false })).toBe(
+      "without-key"
+    );
+  });
+
+  it("says nothing once the 1.4.0 notice was shown", () => {
+    expect(upgradeNotice({ welcomed: true, noticeVersion: "1.4.0", hasStoredKey: true })).toBe("none");
+  });
+});
+
+describe("showUpgradeNoticeOnce", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it("tells an existing install where the URL now comes from, once, and offers the panel", async () => {
+    setMockConfig({ baseUrl: "https://omni.example/v1" });
+    const context = fakeContext({ "omnicopilot.welcomed": true });
+    await context.secrets.store(SECRET_API_KEY, "sk-1");
+    const info = vi
+      .spyOn(vscode.window, "showInformationMessage")
+      .mockResolvedValue("Open panel" as never);
+    const run = vi.spyOn(vscode.commands, "executeCommand");
+
+    await showUpgradeNoticeOnce(context);
+    await showUpgradeNoticeOnce(context);
+
+    expect(info).toHaveBeenCalledTimes(1);
+    expect(info.mock.calls[0]).toEqual([
+      "OmniRoute now reads the server URL only from your user settings. It is https://omni.example, and a URL set in a workspace's settings is no longer used. Your API key is tied to that server.",
+      "Open panel",
+    ]);
+    expect(run).toHaveBeenCalledWith("omnicopilot.manage");
+    expect(context.globalState.get("omnicopilot.noticeVersion")).toBe("1.4.0");
+  });
+
+  it("leaves the key sentence out when no key is stored", async () => {
+    setMockConfig({});
+    const context = fakeContext({ "omnicopilot.welcomed": true });
+    const info = vi.spyOn(vscode.window, "showInformationMessage");
+
+    await showUpgradeNoticeOnce(context);
+
+    expect(info.mock.calls[0][0]).toBe(
+      "OmniRoute now reads the server URL only from your user settings. It is http://localhost:20128, and a URL set in a workspace's settings is no longer used."
+    );
+  });
+
+  it("only sets the marker on a fresh install", async () => {
+    setMockConfig({});
+    const context = fakeContext({});
+    const info = vi.spyOn(vscode.window, "showInformationMessage");
+
+    await showUpgradeNoticeOnce(context);
+
+    expect(info).not.toHaveBeenCalled();
+    expect(context.globalState.get("omnicopilot.noticeVersion")).toBe("1.4.0");
   });
 });
