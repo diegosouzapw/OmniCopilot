@@ -46,6 +46,8 @@ export interface UsageSnapshot {
  * host: the script does no arithmetic of its own. */
 export type UsageQuotaView = UsageQuotaWindow & {
   percentLeft: number | null;
+  /** Formatted amount left on a money quota ("$12.50", "12.5 EUR"), else null. */
+  balance: string | null;
   unlimited: boolean;
   resetIn: string | null;
 };
@@ -144,6 +146,7 @@ export function toUsageView(body: UsageResponse, now = Date.now()): UsageView {
             {
               ...quota,
               percentLeft: quotaRemainingPercent(quota),
+              balance: quotaBalance(quota),
               unlimited: quota.unlimited === true,
               resetIn: resetLabel(quota.resetAt, now),
             } satisfies UsageQuotaView,
@@ -192,6 +195,10 @@ function toNumber(value: unknown): number {
   return Number.NaN;
 }
 
+/** A window carrying a non-empty `currency` measures money, not a share. */
+const isMoneyQuota = (q: UsageQuotaWindow): q is UsageQuotaWindow & { currency: string } =>
+  typeof q.currency === "string" && q.currency.trim() !== "";
+
 const clampPercent = (value: number): number => Math.max(0, Math.min(100, value));
 
 /** Percentage of a quota window still available, or null when unknowable.
@@ -201,8 +208,13 @@ const clampPercent = (value: number): number => Math.max(0, Math.min(100, value)
  * converts "used" to "left". The unit of `remaining` is not fixed — a
  * percentage, a currency balance or an absolute count depending on the
  * provider — so it only counts when it already sits between 0 and 100; so
- * does `used`. Anything else is null rather than a guess. */
+ * does `used`. Anything else is null rather than a guess.
+ *
+ * One deliberate difference from the server: a window with a `currency` is a
+ * money quota, so there `remaining` and a bare `used` are amounts and are never
+ * read as percentages (the panel shows them through `quotaBalance` instead). */
 export function quotaRemainingPercent(q: UsageQuotaWindow): number | null {
+  const money = isMoneyQuota(q);
   const used = ((): number | null => {
     const usedPercentage = toNumber(q.usedPercentage);
     if (Number.isFinite(usedPercentage)) return clampPercent(usedPercentage);
@@ -212,18 +224,31 @@ export function quotaRemainingPercent(q: UsageQuotaWindow): number | null {
     if (Number.isFinite(spent) && Number.isFinite(total) && total > 0) {
       return clampPercent((spent / total) * 100);
     }
-    if (Number.isFinite(spent) && spent >= 0 && spent <= 100) return spent;
+    // A money quota's `used`/`remaining` are amounts, never percentages.
+    if (!money && Number.isFinite(spent) && spent >= 0 && spent <= 100) return spent;
 
     const remainingPercentage = toNumber(q.remainingPercentage);
     if (Number.isFinite(remainingPercentage)) return clampPercent(100 - remainingPercentage);
 
     const remaining = toNumber(q.remaining);
-    if (Number.isFinite(remaining) && remaining >= 0 && remaining <= 100) {
+    if (!money && Number.isFinite(remaining) && remaining >= 0 && remaining <= 100) {
       return clampPercent(100 - remaining);
     }
     return null;
   })();
   return used === null ? null : Math.round(clampPercent(100 - used));
+}
+
+/** The amount left on a money quota, formatted for display: "$12.50" for USD,
+ * "12.5 EUR" for anything else. Null for a window without a currency or
+ * without a finite, non-negative `remaining`. */
+export function quotaBalance(q: UsageQuotaWindow): string | null {
+  if (!isMoneyQuota(q)) return null;
+  const remaining = toNumber(q.remaining);
+  if (!Number.isFinite(remaining) || remaining < 0) return null;
+  const code = q.currency.trim().toUpperCase();
+  if (code === "USD") return formatUsd(remaining);
+  return `${Math.round(remaining * 100) / 100} ${code}`;
 }
 
 /** Mime type VS Code's Copilot Chat reads from a language-model response to

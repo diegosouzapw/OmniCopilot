@@ -207,6 +207,7 @@ export class OmniPanelProvider implements vscode.WebviewViewProvider {
       usageResetsIn: t("resets in {0}"),
       usagePercentLeft: t("{0}% left"),
       usageUnlimited: t("unlimited"),
+      usageBalanceLeft: t("{0} left"),
       usageDisabled: t("Usage is not enabled for this key. An admin can turn on the usage command for it in OmniRoute."),
       usageEmpty: t("Usage is reported, but nothing is cached yet — it fills in after the first requests."),
     };
@@ -357,7 +358,9 @@ export class OmniPanelProvider implements vscode.WebviewViewProvider {
                   ? S.usageUnlimited
                   : typeof q.percentLeft === "number"
                     ? S.usagePercentLeft.replace("{0}", String(q.percentLeft))
-                    : "—";
+                    : typeof q.balance === "string"
+                      ? S.usageBalanceLeft.replace("{0}", () => q.balance)
+                      : "—";
                 const label = snap.provider + (windows.length > 1 ? " · " + name : "");
                 line(label, rem + reset(q.resetIn));
               }
