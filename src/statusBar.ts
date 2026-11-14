@@ -7,6 +7,16 @@ const PROBE_TIMEOUT_MS = 4000;
 
 type Status = "online" | "offline" | "checking";
 
+/** The status after a check, calling `notify` only when it actually changed. */
+export function applyStatus(
+  current: Status,
+  next: "online" | "offline",
+  notify?: (status: "online" | "offline") => void
+): Status {
+  if (next !== current) notify?.(next);
+  return next;
+}
+
 /** Status-bar "dot": green when the OmniRoute server answers the HEAD
  * /v1/models probe, red when it does not. Click → quick actions menu. */
 export class ConnectionStatusBar implements vscode.Disposable {
@@ -20,6 +30,7 @@ export class ConnectionStatusBar implements vscode.Disposable {
   constructor(
     private readonly getClient: () => Promise<OmniRouteClient>,
     private readonly log: vscode.LogOutputChannel,
+    private readonly onStatusChange?: (status: "online" | "offline") => void,
     private readonly getConnection?: () => Promise<Connection>
   ) {
     this.item = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 90);
@@ -78,12 +89,11 @@ export class ConnectionStatusBar implements vscode.Disposable {
   }
 
   private setStatus(status: "online" | "offline"): void {
-    if (this.disposed || status === this.status) {
-      if (!this.disposed) this.render();
-      return;
-    }
-    this.status = status;
-    this.log.info(`OmniRoute connection: ${status}`);
+    if (this.disposed) return;
+    this.status = applyStatus(this.status, status, (s) => {
+      this.log.info(`OmniRoute connection: ${s}`);
+      this.onStatusChange?.(s);
+    });
     this.render();
   }
 
