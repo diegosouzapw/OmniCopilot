@@ -7,6 +7,7 @@ import {
   normalizeReasoningEffort,
   resolveReasoningEffort,
 } from "../src/reasoning";
+import type { OmniRouteModel } from "../src/types";
 
 describe("normalizeReasoningEffort", () => {
   it("accepts every canonical tier", () => {
@@ -59,6 +60,21 @@ describe("effortTiersFor", () => {
   it("falls back to the canonical list when none are advertised", () => {
     expect(effortTiersFor({})).toEqual([...REASONING_EFFORTS]);
     expect(effortTiersFor({ capabilities: { effort_tiers: [] } })).toEqual([...REASONING_EFFORTS]);
+  });
+
+  it.each([["high"], [{}], [null], [42]])(
+    "falls back to the canonical list when effort_tiers is %j and not an array",
+    (effort_tiers) => {
+      const model = { capabilities: { effort_tiers } } as unknown as OmniRouteModel;
+      expect(effortTiersFor(model)).toEqual([...REASONING_EFFORTS]);
+    }
+  );
+
+  it("drops non-string and empty entries from the advertised tiers", () => {
+    const model = {
+      capabilities: { effort_tiers: ["low", 3, "", "high"] },
+    } as unknown as OmniRouteModel;
+    expect(effortTiersFor(model)).toEqual(["low", "high"]);
   });
 });
 

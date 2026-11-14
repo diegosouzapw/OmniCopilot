@@ -48,12 +48,19 @@ export function normalizeReasoningEffort(
   return (REASONING_EFFORTS as readonly string[]).includes(lowered) ? lowered : undefined;
 }
 
+/** The tiers a catalog entry advertises. The catalog is foreign data: anything
+ * that is not an array counts as absent, and entries that are not non-empty
+ * strings are dropped. */
+export function advertisedEffortTiers(model: Pick<OmniRouteModel, "capabilities">): string[] {
+  const raw: unknown = model.capabilities?.effort_tiers;
+  if (!Array.isArray(raw)) return [];
+  return raw.filter((tier): tier is string => typeof tier === "string" && tier.trim() !== "");
+}
+
 /** The tiers to offer for a model: what the catalog advertises, else the
  * canonical list. */
 export function effortTiersFor(model: Pick<OmniRouteModel, "capabilities">): string[] {
-  const advertised = (model.capabilities?.effort_tiers ?? []).filter(
-    (tier): tier is string => typeof tier === "string" && tier.trim() !== ""
-  );
+  const advertised = advertisedEffortTiers(model);
   return advertised.length > 0 ? advertised : [...REASONING_EFFORTS];
 }
 
