@@ -4,7 +4,13 @@ import { selectChatModels } from "./catalogFilter";
 import { DEFAULT_BASE_URL, OmniRouteClient } from "./client";
 import { estimateTokens, toOpenAiMessages, toOpenAiTools } from "./convert";
 import { describeModel } from "./modelInfo";
-import { isReasoningModel, resolveReasoningEffort } from "./reasoning";
+import {
+  buildEffortSchema,
+  effortTiersFor,
+  isReasoningModel,
+  resolveReasoningEffort,
+  type EffortSchema,
+} from "./reasoning";
 import { createToolNameAliases } from "./toolNames";
 import type { ChatRequest, OmniRouteModel, StreamUsage } from "./types";
 import { USAGE_MIME_TYPE, buildUsagePayload } from "./usage";
@@ -17,6 +23,36 @@ interface OmniModelInfo extends vscode.LanguageModelChatInformation {
    * typing; scopes an entry to one chat session type (the Agents window's
    * agent host) and removes it from the general picker. See agentsWindow.ts. */
   targetChatSessionType?: string;
+  /** Proposed-API field read by the host via duck typing: every property with
+   * an `enum` becomes a submenu in the model picker, and the choice comes back
+   * in `options.modelConfiguration`. Not in the stable typings. */
+  configurationSchema?: EffortSchema;
+}
+
+/** Choices the host hands back for the picker declared in `configurationSchema`
+ * (proposed API, so read through a local type). */
+interface ConfiguredChatOptions {
+  modelConfiguration?: Record<string, unknown>;
+}
+
+/** Picker label for a reasoning tier; an unknown tier shows its identifier. */
+function effortLabel(tier: string): string {
+  switch (tier) {
+    case "none":
+      return vscode.l10n.t("Off");
+    case "low":
+      return vscode.l10n.t("Low");
+    case "medium":
+      return vscode.l10n.t("Medium");
+    case "high":
+      return vscode.l10n.t("High");
+    case "xhigh":
+      return vscode.l10n.t("Extra high");
+    case "max":
+      return vscode.l10n.t("Max");
+    default:
+      return tier;
+  }
 }
 
 export interface ProviderDeps {
@@ -121,6 +157,7 @@ export class OmniRouteChatProvider
       }
     }
 
+    const configuredEffort = cfg.get<string>("defaultReasoningEffort", "");
     const infos: OmniModelInfo[] = [];
     this.reasoningModelIds.clear();
     this.effortTiersById.clear();
@@ -154,6 +191,15 @@ export class OmniRouteChatProvider
           imageInput: caps.vision === true,
         },
         omniModelId: model.id,
+        ...(isReasoningModel(model)
+          ? {
+              configurationSchema: buildEffortSchema(
+                effortTiersFor(model),
+                { title: vscode.l10n.t("Thinking effort"), label: effortLabel },
+                configuredEffort
+              ),
+            }
+          : {}),
       });
     }
     // #14: opt-in second set of entries scoped to the Copilot Agents window.
@@ -217,11 +263,12 @@ export class OmniRouteChatProvider
       request.temperature = modelOptions.temperature;
     }
 
-    // #7: forward extended-thinking effort. The editor's per-request choice wins;
+    // #7: forward extended-thinking effort. The picker choice (then any per-request value) wins;
     // the configured default only reaches models the catalog marks as reasoning-
     // capable. Nothing is sent when neither applies, so non-thinking models keep
     // the exact request shape they had before.
     const effort = resolveReasoningEffort({
+      modelConfiguration: (options as ConfiguredChatOptions).modelConfiguration,
       modelOptions,
       configuredDefault: getConfig().get<string>("defaultReasoningEffort", ""),
       modelIsReasoning: this.reasoningModelIds.has(model.omniModelId),

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   REASONING_EFFORTS,
+  buildEffortSchema,
   effortTiersFor,
   isReasoningModel,
   normalizeReasoningEffort,
@@ -166,5 +167,35 @@ describe("resolveReasoningEffort with the model picker", () => {
         modelIsReasoning: true,
       })
     ).toBe("high");
+  });
+});
+
+describe("buildEffortSchema", () => {
+  const text = { title: "Thinking effort", label: (tier: string) => tier.toUpperCase() };
+
+  it("describes an enum picker grouped next to the model", () => {
+    const schema = buildEffortSchema(["low", "high"], text);
+    expect(schema.properties.reasoningEffort).toEqual({
+      type: "string",
+      title: "Thinking effort",
+      enum: ["low", "high"],
+      enumItemLabels: ["LOW", "HIGH"],
+      group: "navigation",
+    });
+  });
+
+  it("omits the schema default when no default effort is configured", () => {
+    const schema = buildEffortSchema(["low", "high"], text, "");
+    expect("default" in schema.properties.reasoningEffort).toBe(false);
+  });
+
+  it("omits the schema default when the model does not offer the configured tier", () => {
+    const schema = buildEffortSchema(["low", "high"], text, "max");
+    expect("default" in schema.properties.reasoningEffort).toBe(false);
+  });
+
+  it("marks the configured default in the schema when the model offers it", () => {
+    const schema = buildEffortSchema(["low", "medium", "high"], text, " High ");
+    expect(schema.properties.reasoningEffort.default).toBe("high");
   });
 });
