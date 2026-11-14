@@ -71,20 +71,54 @@ export class EventEmitter<T> {
   }
 }
 
-/** Values returned by `workspace.getConfiguration().get(key, fallback)`.
+/** User-level values: `inspect(key).globalValue`, and what `get(key, fallback)`
+ * returns unless `setMockInspect` gives a workspace or folder value.
  * Keys are the bare setting names (e.g. "baseUrl"), whatever the section. */
 const configValues = new Map<string, unknown>();
+/** Extra fields of `inspect(key)`: workspace, folder, language and default values. */
+const inspectValues = new Map<string, Record<string, unknown>>();
+/** Every `update()` call, in order. */
+export const configUpdates: Array<{ key: string; value: unknown; target: unknown }> = [];
 
+/** Replace the user-level values; also clears `setMockInspect` and `configUpdates`. */
 export function setMockConfig(values: Record<string, unknown>): void {
   configValues.clear();
+  inspectValues.clear();
+  configUpdates.length = 0;
   for (const [key, value] of Object.entries(values)) configValues.set(key, value);
+}
+
+/** Set the non-user fields `inspect(key)` reports (e.g. `workspaceValue`). */
+export function setMockInspect(key: string, values: Record<string, unknown>): void {
+  inspectValues.set(key, values);
+}
+
+export enum ConfigurationTarget {
+  Global = 1,
+  Workspace = 2,
+  WorkspaceFolder = 3,
 }
 
 export const workspace = {
   getConfiguration(_section?: string) {
     return {
-      get: <T>(key: string, fallback?: T): T | undefined =>
-        configValues.has(key) ? (configValues.get(key) as T) : fallback,
+      // Like VS Code: a folder value wins over a workspace value, which wins over
+      // the user-level value.
+      get: <T>(key: string, fallback?: T): T | undefined => {
+        const extra = inspectValues.get(key) ?? {};
+        if (extra.workspaceFolderValue !== undefined) return extra.workspaceFolderValue as T;
+        if (extra.workspaceValue !== undefined) return extra.workspaceValue as T;
+        return configValues.has(key) ? (configValues.get(key) as T) : fallback;
+      },
+      inspect: (key: string) => ({
+        key,
+        ...(configValues.has(key) ? { globalValue: configValues.get(key) } : {}),
+        ...inspectValues.get(key),
+      }),
+      update: async (key: string, value: unknown, target?: unknown): Promise<void> => {
+        configUpdates.push({ key, value, target });
+        configValues.set(key, value);
+      },
     };
   },
 };
