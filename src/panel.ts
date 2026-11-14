@@ -71,6 +71,8 @@ export class OmniPanelProvider implements vscode.WebviewViewProvider {
   public static readonly viewId = "omnicopilot.panel";
 
   private view: vscode.WebviewView | undefined;
+  /** Number of the newest `refreshStatus` call. */
+  private statusGen = 0;
 
   constructor(
     private readonly context: vscode.ExtensionContext,
@@ -83,10 +85,15 @@ export class OmniPanelProvider implements vscode.WebviewViewProvider {
     await vscode.commands.executeCommand(`${OmniPanelProvider.viewId}.focus`);
   }
 
-  /** Push a fresh status snapshot into the webview, if it is open. */
+  /** Push a fresh status snapshot into the webview, if it is open. A refresh that
+   * finishes after a newer one started is dropped: a slow probe of a URL the
+   * user has already moved away from must not overwrite the newer status. */
   async refreshStatus(): Promise<void> {
     if (!this.view) return;
-    void this.view.webview.postMessage(await this.buildStatus());
+    const gen = ++this.statusGen;
+    const status = await this.buildStatus();
+    if (gen !== this.statusGen || !this.view) return;
+    void this.view.webview.postMessage(status);
   }
 
   resolveWebviewView(view: vscode.WebviewView): void {
