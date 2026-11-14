@@ -10,7 +10,7 @@
   "cmd.quickActions": "Hurtighandlinger",
   "cmd.openSettings": "Åpne innstillinger",
   "view.connection": "Tilkobling",
-  "cfg.baseUrl": "OmniRoutes basis-URL (OpenAI-kompatibel). Pek den mot din lokale installasjon eller en ekstern OmniRoute-instans.",
+  "cfg.baseUrl": "OmniRoutes basis-URL (OpenAI-kompatibel). Pek den mot din lokale installasjon eller en ekstern OmniRoute-instans. Leses fra brukerinnstillingene dine (eller den eksterne maskinens); en verdi i innstillingene til et arbeidsområde ignoreres.",
   "cfg.statusBar": "Vis OmniRoute-tilkoblingsindikatoren i statuslinjen.",
   "cfg.healthCheckIntervalSeconds": "Hvor ofte statuslinjen sjekker OmniRoute-serveren (sekunder).",
   "cfg.maxOutputTokens": "Maksimalt antall utdatatokener reservert per svar.",
@@ -25,7 +25,8 @@
   "cfg.defaultReasoningEffort.low": "Lav",
   "cfg.defaultReasoningEffort.medium": "Middels",
   "cfg.defaultReasoningEffort.high": "Høy",
-  "cfg.defaultReasoningEffort.xhigh": "Høyest — nedjusteres for modeller uten støtte",
+  "cfg.defaultReasoningEffort.xhigh": "Svært høy — nedjusteres for modeller uten støtte",
   "cfg.cliPath": "Bane til OmniRoute-CLI-en, brukt av kommandoen \"Konfigurer koding-CLI\".",
-  "cfg.exposeToAgentsWindow": "Eksperimentell: viser også OmniRoute-modeller i modellvelgeren i Copilots Agents-vindu. Krever VS Code-innstillingen chat.agentHost.byokModels.enabled og omstart av agent host; bruker et foreslått VS Code-API som kan endres."
+  "cfg.exposeToAgentsWindow": "Eksperimentell: viser også OmniRoute-modeller i modellvelgeren i Copilots Agents-vindu. Krever VS Code-innstillingen chat.agentHost.byokModels.enabled og omstart av agent host; bruker et foreslått VS Code-API som kan endres.",
+  "cfg.defaultReasoningEffort.max": "Maksimal — det øverste nivået. OmniRoute nedjusterer det for modeller som ikke tilbyr det."
 }

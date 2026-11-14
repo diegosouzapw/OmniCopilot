@@ -10,7 +10,7 @@
   "cmd.quickActions": "فوری اعمال",
   "cmd.openSettings": "ترتیبات کھولیں",
   "view.connection": "کنکشن",
-  "cfg.baseUrl": "OmniRoute کا بنیادی URL (OpenAI کے ساتھ ہم آہنگ)۔ اسے اپنی مقامی انسٹالیشن یا کسی بھی ریموٹ OmniRoute انسٹینس کی طرف پوائنٹ کریں۔",
+  "cfg.baseUrl": "OmniRoute کا بنیادی URL (OpenAI کے ساتھ ہم آہنگ)۔ اسے اپنی مقامی انسٹالیشن یا کسی بھی ریموٹ OmniRoute انسٹینس کی طرف پوائنٹ کریں۔ یہ آپ کی صارف ترتیبات (یا ریموٹ مشین کی ترتیبات) سے پڑھا جاتا ہے؛ ورک اسپیس کی ترتیبات میں دی گئی قدر کو نظر انداز کیا جاتا ہے۔",
   "cfg.statusBar": "اسٹیٹس بار میں OmniRoute کنکشن انڈیکیٹر دکھائیں۔",
   "cfg.healthCheckIntervalSeconds": "اسٹیٹس بار کتنی بار OmniRoute سرور کو چیک کرتا ہے (سیکنڈ میں)۔",
   "cfg.maxOutputTokens": "فی جواب مختص کردہ زیادہ سے زیادہ آؤٹ پٹ ٹوکنز۔",
@@ -25,7 +25,8 @@
   "cfg.defaultReasoningEffort.low": "کم",
   "cfg.defaultReasoningEffort.medium": "درمیانہ",
   "cfg.defaultReasoningEffort.high": "زیادہ",
-  "cfg.defaultReasoningEffort.xhigh": "سب سے زیادہ — حمایت نہ رکھنے والے ماڈلز میں کم کر دیا جاتا ہے",
+  "cfg.defaultReasoningEffort.xhigh": "بہت زیادہ — حمایت نہ رکھنے والے ماڈلز میں کم کر دیا جاتا ہے",
   "cfg.cliPath": "OmniRoute CLI کا راستہ، جو \"کوڈنگ CLI کنفیگر کریں\" کمانڈ استعمال کرتی ہے۔",
-  "cfg.exposeToAgentsWindow": "تجرباتی: Copilot کی Agents window کے ماڈل پکر میں بھی OmniRoute ماڈلز دکھاتا ہے۔ VS Code کی ترتیب chat.agentHost.byokModels.enabled اور agent host کا دوبارہ آغاز درکار ہے؛ ایک مجوزہ VS Code API استعمال کرتا ہے جو تبدیل ہو سکتا ہے۔"
+  "cfg.exposeToAgentsWindow": "تجرباتی: Copilot کی Agents window کے ماڈل پکر میں بھی OmniRoute ماڈلز دکھاتا ہے۔ VS Code کی ترتیب chat.agentHost.byokModels.enabled اور agent host کا دوبارہ آغاز درکار ہے؛ ایک مجوزہ VS Code API استعمال کرتا ہے جو تبدیل ہو سکتا ہے۔",
+  "cfg.defaultReasoningEffort.max": "زیادہ سے زیادہ — سب سے اونچا درجہ۔ OmniRoute اسے ان ماڈلز کے لیے کم کر دیتا ہے جو اسے پیش نہیں کرتے۔"
 }

@@ -10,7 +10,7 @@
   "cmd.quickActions": "விரைவு செயல்கள்",
   "cmd.openSettings": "அமைப்புகளைத் திற",
   "view.connection": "இணைப்பு",
-  "cfg.baseUrl": "OmniRoute அடிப்படை URL (OpenAI-இணக்கமானது). உங்கள் உள்ளூர் நிறுவலுக்கோ அல்லது எந்தவொரு தொலைநிலை OmniRoute நிகழ்விற்கோ இதை அமைக்கவும்.",
+  "cfg.baseUrl": "OmniRoute அடிப்படை URL (OpenAI-இணக்கமானது). உங்கள் உள்ளூர் நிறுவலுக்கோ அல்லது எந்தவொரு தொலைநிலை OmniRoute நிகழ்விற்கோ இதை அமைக்கவும். இது உங்கள் பயனர் அமைப்புகளிலிருந்து (அல்லது தொலைநிலைக் கணினியின் அமைப்புகளிலிருந்து) படிக்கப்படும்; பணியிட அமைப்புகளில் உள்ள மதிப்பு புறக்கணிக்கப்படும்.",
   "cfg.statusBar": "நிலைப் பட்டையில் OmniRoute இணைப்புக் காட்டியைக் காண்பி.",
   "cfg.healthCheckIntervalSeconds": "நிலைப் பட்டை OmniRoute சேவையகத்தை எவ்வளவு அடிக்கடி சரிபார்க்கிறது (வினாடிகள்).",
   "cfg.maxOutputTokens": "ஒவ்வொரு பதிலுக்கும் ஒதுக்கப்படும் அதிகபட்ச வெளியீட்டு டோக்கன்கள்.",
@@ -25,7 +25,8 @@
   "cfg.defaultReasoningEffort.low": "குறைவு",
   "cfg.defaultReasoningEffort.medium": "நடுத்தரம்",
   "cfg.defaultReasoningEffort.high": "அதிகம்",
-  "cfg.defaultReasoningEffort.xhigh": "அதிகபட்சம் — ஆதரவில்லாத மாதிரிகளில் குறைக்கப்படும்",
+  "cfg.defaultReasoningEffort.xhigh": "மிக அதிகம் — ஆதரவில்லாத மாதிரிகளில் குறைக்கப்படும்",
   "cfg.cliPath": "\"கோடிங் CLI ஐ உள்ளமை\" கட்டளையால் பயன்படுத்தப்படும் OmniRoute CLI இன் பாதை.",
-  "cfg.exposeToAgentsWindow": "சோதனை: Copilot-இன் Agents window மாடல் தேர்வியிலும் OmniRoute மாடல்களைக் காட்டுகிறது. VS Code அமைப்பு chat.agentHost.byokModels.enabled மற்றும் agent host மறுதொடக்கம் தேவை; மாறக்கூடிய முன்மொழியப்பட்ட VS Code API-ஐப் பயன்படுத்துகிறது."
+  "cfg.exposeToAgentsWindow": "சோதனை: Copilot-இன் Agents window மாடல் தேர்வியிலும் OmniRoute மாடல்களைக் காட்டுகிறது. VS Code அமைப்பு chat.agentHost.byokModels.enabled மற்றும் agent host மறுதொடக்கம் தேவை; மாறக்கூடிய முன்மொழியப்பட்ட VS Code API-ஐப் பயன்படுத்துகிறது.",
+  "cfg.defaultReasoningEffort.max": "அதிகபட்சம் — உச்ச நிலை. இதை வழங்காத மாதிரிகளுக்கு OmniRoute இதைக் குறைக்கும்."
 }

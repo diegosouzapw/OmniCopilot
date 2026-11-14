@@ -10,7 +10,7 @@
   "cmd.quickActions": "Pikatoiminnot",
   "cmd.openSettings": "Avaa asetukset",
   "view.connection": "Yhteys",
-  "cfg.baseUrl": "OmniRouten perus-URL (OpenAI-yhteensopiva). Osoita se paikalliseen asennukseesi tai mihin tahansa OmniRoute-etäinstanssiin.",
+  "cfg.baseUrl": "OmniRouten perus-URL (OpenAI-yhteensopiva). Osoita se paikalliseen asennukseesi tai mihin tahansa OmniRoute-etäinstanssiin. Luetaan käyttäjäasetuksistasi (tai etäkoneen asetuksista); työtilan asetuksissa oleva arvo ohitetaan.",
   "cfg.statusBar": "Näytä OmniRoute-yhteyden ilmaisin tilarivillä.",
   "cfg.healthCheckIntervalSeconds": "Kuinka usein tilarivi tarkistaa OmniRoute-palvelimen (sekunteina).",
   "cfg.maxOutputTokens": "Vastausta kohden varattujen tulostetokenien enimmäismäärä.",
@@ -25,7 +25,8 @@
   "cfg.defaultReasoningEffort.low": "Matala",
   "cfg.defaultReasoningEffort.medium": "Keskitaso",
   "cfg.defaultReasoningEffort.high": "Korkea",
-  "cfg.defaultReasoningEffort.xhigh": "Korkein — lasketaan malleille, jotka eivät tue sitä",
+  "cfg.defaultReasoningEffort.xhigh": "Erittäin korkea — lasketaan malleille, jotka eivät tue sitä",
   "cfg.cliPath": "OmniRoute CLI:n polku, jota \"Configure Coding CLI\" -komento käyttää.",
-  "cfg.exposeToAgentsWindow": "Kokeellinen: näyttää OmniRoute-mallit myös Copilotin Agents-ikkunan mallivalitsimessa. Vaatii VS Coden asetuksen chat.agentHost.byokModels.enabled ja agent hostin uudelleenkäynnistyksen; käyttää ehdotettua VS Code -API:a, joka voi muuttua."
+  "cfg.exposeToAgentsWindow": "Kokeellinen: näyttää OmniRoute-mallit myös Copilotin Agents-ikkunan mallivalitsimessa. Vaatii VS Coden asetuksen chat.agentHost.byokModels.enabled ja agent hostin uudelleenkäynnistyksen; käyttää ehdotettua VS Code -API:a, joka voi muuttua.",
+  "cfg.defaultReasoningEffort.max": "Maksimi — korkein taso. OmniRoute laskee sen malleille, jotka eivät tarjoa sitä."
 }

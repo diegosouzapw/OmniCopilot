@@ -253,6 +253,7 @@
     "lint": "eslint src",
     "test": "vitest run",
     "icon": "node scripts/render-icon.mjs",
+    "l10n:check": "node scripts/l10n-check.mjs",
     "package": "npm run check-types && node esbuild.mjs --production",
     "vscode:prepublish": "npm run package",
     "vsix": "vsce package -o omnicopilot.vsix"

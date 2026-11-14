@@ -10,7 +10,7 @@
   "cmd.quickActions": "Ações Rápidas",
   "cmd.openSettings": "Abrir Configurações",
   "view.connection": "Conexão",
-  "cfg.baseUrl": "URL base do OmniRoute (compatível com OpenAI). Aponte para a sua instalação local ou para qualquer instância remota do OmniRoute.",
+  "cfg.baseUrl": "URL base do OmniRoute (compatível com OpenAI). Aponte para a sua instalação local ou para qualquer instância remota do OmniRoute. É lida das suas configurações de usuário (ou das da máquina remota); um valor nas configurações de um espaço de trabalho é ignorado.",
   "cfg.statusBar": "Mostrar o indicador de conexão do OmniRoute na barra de status.",
   "cfg.healthCheckIntervalSeconds": "Com que frequência a barra de status consulta o servidor OmniRoute (segundos).",
   "cfg.maxOutputTokens": "Número máximo de tokens de saída reservados por resposta.",
@@ -25,7 +25,8 @@
   "cfg.defaultReasoningEffort.low": "Baixo",
   "cfg.defaultReasoningEffort.medium": "Médio",
   "cfg.defaultReasoningEffort.high": "Alto",
-  "cfg.defaultReasoningEffort.xhigh": "Máximo — reduzido nos modelos que não suportam",
+  "cfg.defaultReasoningEffort.xhigh": "Muito alto — reduzido nos modelos sem suporte",
   "cfg.cliPath": "Caminho para a CLI do OmniRoute, usado pelo comando \"Configurar CLI de Codificação\".",
-  "cfg.exposeToAgentsWindow": "Experimental: também lista os modelos do OmniRoute no seletor de modelos da janela Agents do Copilot. Requer a configuração do VS Code chat.agentHost.byokModels.enabled e reinício do agent host; usa uma API proposta do VS Code que pode mudar."
+  "cfg.exposeToAgentsWindow": "Experimental: também lista os modelos do OmniRoute no seletor de modelos da janela Agents do Copilot. Requer a configuração do VS Code chat.agentHost.byokModels.enabled e reinício do agent host; usa uma API proposta do VS Code que pode mudar.",
+  "cfg.defaultReasoningEffort.max": "Máximo — o nível mais alto. O OmniRoute reduz esse nível nos modelos que não o oferecem."
 }

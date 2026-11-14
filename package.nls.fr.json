@@ -10,7 +10,7 @@
   "cmd.quickActions": "Actions rapides",
   "cmd.openSettings": "Ouvrir les paramètres",
   "view.connection": "Connexion",
-  "cfg.baseUrl": "URL de base d'OmniRoute (compatible OpenAI). Faites-la pointer vers votre installation locale ou vers n'importe quelle instance OmniRoute distante.",
+  "cfg.baseUrl": "URL de base d'OmniRoute (compatible OpenAI). Faites-la pointer vers votre installation locale ou vers n'importe quelle instance OmniRoute distante. Lue dans vos paramètres utilisateur (ou ceux de la machine distante) ; une valeur dans les paramètres d'un espace de travail est ignorée.",
   "cfg.statusBar": "Afficher l'indicateur de connexion OmniRoute dans la barre d'état.",
   "cfg.healthCheckIntervalSeconds": "Fréquence à laquelle la barre d'état sonde le serveur OmniRoute (en secondes).",
   "cfg.maxOutputTokens": "Nombre maximal de jetons de sortie réservés par réponse.",
@@ -25,7 +25,8 @@
   "cfg.defaultReasoningEffort.low": "Faible",
   "cfg.defaultReasoningEffort.medium": "Moyen",
   "cfg.defaultReasoningEffort.high": "Élevé",
-  "cfg.defaultReasoningEffort.xhigh": "Maximal — abaissé pour les modèles qui ne le gèrent pas",
+  "cfg.defaultReasoningEffort.xhigh": "Très élevé — abaissé pour les modèles qui ne le gèrent pas",
   "cfg.cliPath": "Chemin de la CLI OmniRoute, utilisé par la commande \"Configure Coding CLI\".",
-  "cfg.exposeToAgentsWindow": "Expérimental : affiche aussi les modèles OmniRoute dans le sélecteur de modèles de la fenêtre Agents de Copilot. Nécessite le paramètre VS Code chat.agentHost.byokModels.enabled et un redémarrage de l'agent host ; utilise une API proposée de VS Code susceptible de changer."
+  "cfg.exposeToAgentsWindow": "Expérimental : affiche aussi les modèles OmniRoute dans le sélecteur de modèles de la fenêtre Agents de Copilot. Nécessite le paramètre VS Code chat.agentHost.byokModels.enabled et un redémarrage de l'agent host ; utilise une API proposée de VS Code susceptible de changer.",
+  "cfg.defaultReasoningEffort.max": "Maximal — le niveau le plus haut. OmniRoute l'abaisse pour les modèles qui ne le proposent pas."
 }

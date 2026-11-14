@@ -10,7 +10,7 @@
   "cmd.quickActions": "Tindakan Cepat",
   "cmd.openSettings": "Buka Pengaturan",
   "view.connection": "Koneksi",
-  "cfg.baseUrl": "URL dasar OmniRoute (kompatibel dengan OpenAI). Arahkan ke instalasi lokal Anda atau ke instans OmniRoute jarak jauh mana pun.",
+  "cfg.baseUrl": "URL dasar OmniRoute (kompatibel dengan OpenAI). Arahkan ke instalasi lokal Anda atau ke instans OmniRoute jarak jauh mana pun. Dibaca dari pengaturan pengguna Anda (atau milik mesin jarak jauh); nilai di pengaturan ruang kerja diabaikan.",
   "cfg.statusBar": "Tampilkan indikator koneksi OmniRoute di bilah status.",
   "cfg.healthCheckIntervalSeconds": "Seberapa sering bilah status memeriksa server OmniRoute (detik).",
   "cfg.maxOutputTokens": "Jumlah maksimum token keluaran yang dicadangkan per respons.",
@@ -25,7 +25,8 @@
   "cfg.defaultReasoningEffort.low": "Rendah",
   "cfg.defaultReasoningEffort.medium": "Sedang",
   "cfg.defaultReasoningEffort.high": "Tinggi",
-  "cfg.defaultReasoningEffort.xhigh": "Tertinggi — diturunkan untuk model yang tidak mendukung",
+  "cfg.defaultReasoningEffort.xhigh": "Sangat tinggi — diturunkan untuk model yang tidak mendukung",
   "cfg.cliPath": "Jalur ke CLI OmniRoute, digunakan oleh perintah \"Konfigurasikan CLI Pengodean\".",
-  "cfg.exposeToAgentsWindow": "Eksperimental: juga menampilkan model OmniRoute di pemilih model jendela Agents Copilot. Memerlukan setelan VS Code chat.agentHost.byokModels.enabled dan mulai ulang agent host; menggunakan API usulan VS Code yang dapat berubah."
+  "cfg.exposeToAgentsWindow": "Eksperimental: juga menampilkan model OmniRoute di pemilih model jendela Agents Copilot. Memerlukan setelan VS Code chat.agentHost.byokModels.enabled dan mulai ulang agent host; menggunakan API usulan VS Code yang dapat berubah.",
+  "cfg.defaultReasoningEffort.max": "Maksimum — tingkat teratas. OmniRoute menurunkannya untuk model yang tidak menawarkannya."
 }

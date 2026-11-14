@@ -10,7 +10,7 @@
   "cmd.quickActions": "Acțiuni rapide",
   "cmd.openSettings": "Deschide setările",
   "view.connection": "Conexiune",
-  "cfg.baseUrl": "URL-ul de bază OmniRoute (compatibil OpenAI). Îndreptați-l către instalarea locală sau către orice instanță OmniRoute la distanță.",
+  "cfg.baseUrl": "URL-ul de bază OmniRoute (compatibil OpenAI). Îndreptați-l către instalarea locală sau către orice instanță OmniRoute la distanță. Se citește din setările de utilizator (sau ale mașinii la distanță); o valoare din setările unui spațiu de lucru este ignorată.",
   "cfg.statusBar": "Afișează indicatorul de conexiune OmniRoute în bara de stare.",
   "cfg.healthCheckIntervalSeconds": "Cât de des interoghează bara de stare serverul OmniRoute (secunde).",
   "cfg.maxOutputTokens": "Numărul maxim de tokenuri de ieșire rezervate per răspuns.",
@@ -25,7 +25,8 @@
   "cfg.defaultReasoningEffort.low": "Scăzut",
   "cfg.defaultReasoningEffort.medium": "Mediu",
   "cfg.defaultReasoningEffort.high": "Ridicat",
-  "cfg.defaultReasoningEffort.xhigh": "Maxim — redus la modelele fără suport",
+  "cfg.defaultReasoningEffort.xhigh": "Foarte ridicat — redus la modelele fără suport",
   "cfg.cliPath": "Calea către CLI-ul OmniRoute, folosită de comanda \"Configurare CLI de codare\".",
-  "cfg.exposeToAgentsWindow": "Experimental: afișează modelele OmniRoute și în selectorul de modele al ferestrei Agents din Copilot. Necesită setarea VS Code chat.agentHost.byokModels.enabled și repornirea agent host-ului; folosește un API propus al VS Code care se poate schimba."
+  "cfg.exposeToAgentsWindow": "Experimental: afișează modelele OmniRoute și în selectorul de modele al ferestrei Agents din Copilot. Necesită setarea VS Code chat.agentHost.byokModels.enabled și repornirea agent host-ului; folosește un API propus al VS Code care se poate schimba.",
+  "cfg.defaultReasoningEffort.max": "Maxim — cel mai înalt nivel. OmniRoute îl reduce pentru modelele care nu îl oferă."
 }
