@@ -181,7 +181,7 @@ export class OmniPanelProvider implements vscode.WebviewViewProvider {
         detail = detail ? `${detail} ${failure}` : failure;
       }
       try {
-        usage = await fetchUsage(url, apiKey);
+        usage = await fetchUsage(url, apiKey, vscode.l10n.t);
       } catch {
         // An unreachable/refused usage endpoint must not blank the status —
         // the section simply hides. `unsupported` is the same signal, kept
@@ -230,9 +230,6 @@ export class OmniPanelProvider implements vscode.WebviewViewProvider {
       usageDaily: t("Daily"),
       usageWeekly: t("Weekly"),
       usageResetsIn: t("resets in {0}"),
-      usagePercentLeft: t("{0}% left"),
-      usageUnlimited: t("unlimited"),
-      usageBalanceLeft: t("{0} left"),
       usageDisabled: t("Usage is not enabled for this key. An admin can turn on the usage command for it in OmniRoute."),
       usageEmpty: t("Usage is reported, but nothing is cached yet — it fills in after the first requests."),
       footProduct: t("A Cheaper Inference product"),
@@ -428,15 +425,15 @@ export class OmniPanelProvider implements vscode.WebviewViewProvider {
         if (u.kind === "disabled") {
           usageBody.textContent = S.usageDisabled;
         } else {
-          // percent (0-100) is optional: only rows with a known percentage get a bar.
-          // The bar is decorative — the percentage is already in the row's text.
+          // The host wrote every text; percent (0-100) or null only sizes the bar,
+          // which is decorative — what is left is already in the row's text.
           const line = (label, text, percent) => {
             const row = document.createElement("div");
             row.className = "usage-row";
             const b = document.createElement("strong");
             b.textContent = label + ": ";
             row.append(b, text);
-            if (typeof percent === "number" && Number.isFinite(percent)) {
+            if (percent !== null && percent !== undefined) {
               const bar = document.createElement("div");
               bar.className = "bar";
               bar.setAttribute("aria-hidden", "true");
@@ -451,13 +448,10 @@ export class OmniPanelProvider implements vscode.WebviewViewProvider {
           const reset = (value) => value ? " · " + S.usageResetsIn.replace("{0}", value) : "";
           const pers = u.personal;
           if (pers) {
-            const usd = (v) => (typeof v === "number" ? "$" + v.toFixed(2) : "—");
-            const left = (percent) =>
-              typeof percent === "number" ? " (" + S.usagePercentLeft.replace("{0}", String(percent)) + ")" : "";
             if (pers.dailyLimitUsd !== null)
-              line(S.usageDaily, usd(pers.dailySpentUsd) + " / " + usd(pers.dailyLimitUsd) + left(pers.dailyPercentLeft) + reset(pers.dailyResetIn), pers.dailyPercentLeft);
+              line(S.usageDaily, pers.dailyText + reset(pers.dailyResetIn), pers.dailyPercentLeft);
             if (pers.weeklyLimitUsd !== null)
-              line(S.usageWeekly, usd(pers.weeklySpentUsd) + " / " + usd(pers.weeklyLimitUsd) + left(pers.weeklyPercentLeft) + reset(pers.weeklyResetIn), pers.weeklyPercentLeft);
+              line(S.usageWeekly, pers.weeklyText + reset(pers.weeklyResetIn), pers.weeklyPercentLeft);
           }
           const providers = Array.isArray(u.providers) ? u.providers : [];
           if (providers.length === 0 && !pers) {
@@ -465,17 +459,10 @@ export class OmniPanelProvider implements vscode.WebviewViewProvider {
           } else {
             for (const snap of providers) {
               const windows = Object.entries(snap.quotas ?? {});
-              for (const [name, q] of windows) {
-                // The host already resolved percentLeft/unlimited/resetIn.
-                const rem = q.unlimited
-                  ? S.usageUnlimited
-                  : typeof q.percentLeft === "number"
-                    ? S.usagePercentLeft.replace("{0}", String(q.percentLeft))
-                    : typeof q.balance === "string"
-                      ? S.usageBalanceLeft.replace("{0}", () => q.balance)
-                      : "—";
-                const label = snap.provider + (windows.length > 1 ? " · " + name : "");
-                line(label, rem + reset(q.resetIn), q.unlimited ? null : q.percentLeft);
+              for (const [, q] of windows) {
+                // The host already resolved text, label, percentLeft and resetIn.
+                const label = snap.provider + (windows.length > 1 ? " · " + q.label : "");
+                line(label, q.text + reset(q.resetIn), q.percentLeft);
               }
             }
           }
