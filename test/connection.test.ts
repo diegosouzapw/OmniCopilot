@@ -18,7 +18,17 @@ import {
   ignoredWorkspaceUrl,
   showIgnoredWorkspaceUrlNotice,
   userLevelBaseUrl,
+  displayUrl,
+  plainNotificationText,
+  isHttpUrl,
 } from "../src/connection";
+
+/** A settings value that VS Code would render as a clickable command link in a notification. */
+const LINK_PAYLOAD =
+  "[http://localhost:20128](command:workbench.action.terminal.sendSequence?%7B%22text%22%3A%22x%22%7D)";
+/** The same link inside the path of a real http URL. */
+const LINK_IN_PATH = `http://evil.example/${LINK_PAYLOAD}`;
+
 
 /** An extension context whose SecretStorage and globalState are plain maps. */
 function fakeContext(state: Record<string, unknown> = {}) {
@@ -611,5 +621,133 @@ describe("storeApiKey write order", () => {
       expect(key !== undefined && origins === undefined).toBe(false);
     }
     expect(snapshots.at(-1)).toEqual({ key: "sk-new", origins: [B] });
+  });
+});
+
+describe("displayUrl", () => {
+  it("keeps a plain URL readable", () => {
+    expect(displayUrl("https://omni.example")).toBe("https://omni.example");
+    expect(displayUrl("  http://192.168.0.4:20128/  ")).toBe("http://192.168.0.4:20128");
+    expect(displayUrl("https://omni.example/gateway/v1")).toBe("https://omni.example/gateway/v1");
+  });
+
+  it("drops credentials, query and fragment", () => {
+    expect(displayUrl("https://user:secret@omni.example:8443/p/?token=abc#frag")).toBe(
+      "https://omni.example:8443/p"
+    );
+  });
+
+  it("keeps the brackets of an IPv6 host", () => {
+    expect(displayUrl("http://[::1]:20128/")).toBe("http://[::1]:20128");
+    expect(displayUrl("http://[2001:db8::1]/a[b]")).toBe("http://[2001:db8::1]/a%5Bb%5D");
+  });
+
+  it("percent-encodes brackets, parentheses, angle brackets and backticks in a path", () => {
+    expect(displayUrl("https://omni.example/a[b](c)<d>`e")).toBe(
+      "https://omni.example/a%5Bb%5D%28c%29%3Cd%3E%60e"
+    );
+    expect(displayUrl("http://a(b).example/")).toBe("http://a%28b%29.example");
+  });
+
+  it("neutralises the link payload, as text or inside a URL", () => {
+    for (const value of [LINK_PAYLOAD, LINK_IN_PATH]) {
+      const shown = displayUrl(value);
+      expect(shown).not.toContain("](");
+      expect(shown).not.toMatch(/[()<>`]/);
+    }
+    expect(displayUrl(LINK_PAYLOAD)).toBe(
+      "%5Bhttp://localhost:20128%5D%28command:workbench.action.terminal.sendSequence?%7B%22text%22%3A%22x%22%7D%29"
+    );
+  });
+
+  it("cuts a very long value to 200 characters plus an ellipsis", () => {
+    const shown = displayUrl("x".repeat(5000));
+    expect(shown).toBe(`${"x".repeat(200)}…`);
+    expect(displayUrl(`https://omni.example/${"a".repeat(5000)}`)).toHaveLength(201);
+  });
+
+  it("removes control characters and line breaks", () => {
+    expect(displayUrl("evil\n[x]\r\n(command:y)\u0007\u2028")).toBe("evil%5Bx%5D%28command:y%29");
+  });
+
+  it("gives nothing for a non-string or an empty value", () => {
+    expect(displayUrl(42)).toBe("");
+    expect(displayUrl(undefined)).toBe("");
+    expect(displayUrl(null)).toBe("");
+    expect(displayUrl("   ")).toBe("");
+  });
+
+  it("can never contain the link separator", () => {
+    const samples = [LINK_PAYLOAD, LINK_IN_PATH, "](", "a](b", "http://h/](x", "[a]\n(b)", "x".repeat(199) + "](y"];
+    for (const value of samples) expect(displayUrl(value)).not.toContain("](");
+  });
+});
+
+describe("plainNotificationText", () => {
+  it("joins lines and breaks every link separator", () => {
+    expect(plainNotificationText("bad\r\nthing\u0000here")).toBe("bad thing here");
+    expect(plainNotificationText(`Error: ${LINK_PAYLOAD}`)).not.toContain("](");
+    expect(plainNotificationText("[a](b) and [c]](d)")).toBe("[a] (b) and [c]] (d)");
+  });
+});
+
+describe("isHttpUrl", () => {
+  it("accepts only http and https URLs", () => {
+    expect(isHttpUrl("https://omni.example")).toBe(true);
+    expect(isHttpUrl(" http://[::1]:20128 ")).toBe(true);
+    expect(isHttpUrl(LINK_PAYLOAD)).toBe(false);
+    expect(isHttpUrl("localhost:20128")).toBe(false);
+    expect(isHttpUrl("file:///etc/passwd")).toBe(false);
+    expect(isHttpUrl(42)).toBe(false);
+  });
+});
+
+describe("notifications built from settings carry no link", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  const texts = (spy: { mock: { calls: unknown[][] } }) => spy.mock.calls.map((call) => String(call[0]));
+
+  it("does not show the ignored-workspace-URL notice for a value that is not an http URL", async () => {
+    setMockConfig({ baseUrl: "https://user.example" });
+    setMockInspect("baseUrl", { workspaceValue: LINK_PAYLOAD });
+    const info = vi.spyOn(vscode.window, "showInformationMessage");
+
+    await showIgnoredWorkspaceUrlNotice(fakeContext());
+
+    expect(info).not.toHaveBeenCalled();
+  });
+
+  it("shows an http workspace URL in the notice only with the link broken", async () => {
+    setMockConfig({ baseUrl: LINK_IN_PATH });
+    setMockInspect("baseUrl", { workspaceValue: `${LINK_IN_PATH}/other` });
+    const info = vi.spyOn(vscode.window, "showInformationMessage");
+
+    await showIgnoredWorkspaceUrlNotice(fakeContext());
+
+    expect(info).toHaveBeenCalledTimes(1);
+    expect(texts(info)[0]).not.toContain("](");
+  });
+
+  it("names the plain-HTTP origin without a link", async () => {
+    setMockConfig({ baseUrl: LINK_PAYLOAD });
+    const warn = vi.spyOn(vscode.window, "showWarningMessage");
+
+    await storeApiKey(fakeContext(), "sk-1");
+
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(texts(warn)[0]).not.toContain("](");
+  });
+
+  it("names both servers of the withheld-key warning without a link", async () => {
+    const context = fakeContext();
+    context.secretMap.set(SECRET_API_KEY, "sk-1");
+    context.secretMap.set(SECRET_API_KEY_ORIGINS, JSON.stringify([LINK_PAYLOAD]));
+    setMockConfig({ baseUrl: LINK_IN_PATH });
+    const warn = vi.spyOn(vscode.window, "showWarningMessage");
+
+    await warnIfKeyWithheld(context, new Set(), async () => undefined);
+
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(texts(warn)[0]).not.toContain("](");
   });
 });

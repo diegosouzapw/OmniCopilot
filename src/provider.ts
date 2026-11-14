@@ -2,7 +2,7 @@ import * as vscode from "vscode";
 import { expandForAgentsWindow } from "./agentsWindow";
 import { selectChatModels } from "./catalogFilter";
 import { OmniRouteClient, OmniRouteRequestError, serverRootUrl } from "./client";
-import { SECRET_API_KEY, resolveConnection } from "./connection";
+import { SECRET_API_KEY, displayUrl, resolveConnection } from "./connection";
 import { estimateTokens, toOpenAiMessages, toOpenAiTools } from "./convert";
 import { describeModel } from "./modelInfo";
 import {
@@ -236,7 +236,7 @@ export class OmniRouteChatProvider
     const configureLabel = vscode.l10n.t("Configure Connection");
     const installLabel = vscode.l10n.t("Install OmniRoute");
     const pick = await vscode.window.showWarningMessage(
-      vscode.l10n.t("Could not reach OmniRoute at {0}. Is it running?", serverUrl),
+      vscode.l10n.t("Could not reach OmniRoute at {0}. Is it running?", displayUrl(serverUrl)),
       configureLabel,
       installLabel
     );

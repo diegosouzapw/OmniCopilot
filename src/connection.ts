@@ -142,6 +142,79 @@ export function ignoredWorkspaceUrl(args: {
   return serverRootUrl(candidate) === args.effectiveRoot ? undefined : candidate.trim();
 }
 
+/** Longest address shown in a notification; longer ones are cut with "…". */
+const MAX_DISPLAY_URL = 200;
+
+/** C0/C1 control characters, DEL and the Unicode line and paragraph separators. */
+function isControlOrLineBreak(char: string): boolean {
+  const code = char.charCodeAt(0);
+  return code < 0x20 || (code >= 0x7f && code <= 0x9f) || code === 0x2028 || code === 0x2029;
+}
+
+/** Characters VS Code's notification link syntax `[label](target)` is made of. */
+function encodeLinkSyntax(text: string, keepBrackets = false): string {
+  return text.replace(/[[\]()<>`]/g, (char) =>
+    keepBrackets && (char === "[" || char === "]")
+      ? char
+      : `%${char.charCodeAt(0).toString(16).toUpperCase()}`
+  );
+}
+
+/** Whether `value` is an http: or https: URL (after trimming). */
+export function isHttpUrl(value: unknown): value is string {
+  if (typeof value !== "string" || !value.trim()) return false;
+  try {
+    const { protocol } = new URL(value.trim());
+    return protocol === "http:" || protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * An address made safe to show in a notification. VS Code renders
+ * `[label](command:…)` in notification text as a link that runs the command, and
+ * an address can come from a workspace's, a remote machine's or a container's
+ * settings. An http(s) URL is reduced to the parser's scheme, host, port and path
+ * (no credentials, query, fragment or trailing slash); anything else is shown as
+ * trimmed text. Then line breaks and control characters are removed, the link
+ * characters are percent-encoded (except an IPv6 host's brackets) and the result
+ * is cut to 200 characters. It can never contain `](`.
+ */
+export function displayUrl(value: unknown): string {
+  if (typeof value !== "string" || !value.trim()) return "";
+  const text = value.trim();
+  const strip = (part: string) => [...part].filter((char) => !isControlOrLineBreak(char)).join("");
+  let shown: string;
+  if (isHttpUrl(text)) {
+    const url = new URL(text);
+    // Only an IPv6 host can hold brackets; parentheses and backticks can occur in a host.
+    const origin = encodeLinkSyntax(`${url.protocol}//${url.host}`, url.hostname.startsWith("["));
+    shown = origin + encodeLinkSyntax(strip(url.pathname.replace(/\/+$/, "")));
+  } else {
+    shown = encodeLinkSyntax(strip(text));
+  }
+  return shown.length > MAX_DISPLAY_URL ? `${shown.slice(0, MAX_DISPLAY_URL)}…` : shown;
+}
+
+/** Free text (an error message) made safe for a notification: control characters
+ * and line breaks become one space, and no `](` is left to form a link. */
+export function plainNotificationText(text: string): string {
+  let out = "";
+  let pendingSpace = false;
+  for (const char of text) {
+    if (isControlOrLineBreak(char)) {
+      pendingSpace = true;
+      continue;
+    }
+    if (pendingSpace) out += " ";
+    pendingSpace = false;
+    out += char;
+  }
+  if (pendingSpace) out += " ";
+  return out.split("](").join("] (");
+}
+
 /** The only read of the `omnicopilot.baseUrl` setting. */
 function readUrlSetting(): { baseUrl: string; ignoredWorkspaceUrl: string | undefined } {
   const inspected = vscode.workspace
@@ -193,7 +266,8 @@ export async function resolveConnection(context: vscode.ExtensionContext): Promi
 export async function showIgnoredWorkspaceUrlNotice(context: vscode.ExtensionContext): Promise<void> {
   const setting = readUrlSetting();
   const ignored = setting.ignoredWorkspaceUrl;
-  if (ignored === undefined || ignored === context.workspaceState.get<string>(STATE_IGNORED_URL_NOTICE)) {
+  // A value that is not an http(s) URL is only shown in the panel, as text.
+  if (!isHttpUrl(ignored) || ignored === context.workspaceState.get<string>(STATE_IGNORED_URL_NOTICE)) {
     return;
   }
   await context.workspaceState.update(STATE_IGNORED_URL_NOTICE, ignored);
@@ -201,8 +275,8 @@ export async function showIgnoredWorkspaceUrlNotice(context: vscode.ExtensionCon
   const pick = await vscode.window.showInformationMessage(
     vscode.l10n.t(
       "This workspace's settings set an OmniRoute server URL ({0}). It is not used: the server URL is read from your user settings, and it is {1}.",
-      ignored,
-      serverRootUrl(setting.baseUrl)
+      displayUrl(ignored),
+      displayUrl(serverRootUrl(setting.baseUrl))
     ),
     openPanel
   );
@@ -260,7 +334,7 @@ async function warnIfInsecure(context: vscode.ExtensionContext, origin: string):
   void vscode.window.showWarningMessage(
     vscode.l10n.t(
       "The API key for {0} travels over plain HTTP. Anyone on the network path can read it. Prefer HTTPS or a tunnel for a server outside this machine.",
-      origin
+      displayUrl(origin)
     )
   );
 }
@@ -293,8 +367,8 @@ export async function warnIfKeyWithheld(
   const pick = await vscode.window.showWarningMessage(
     vscode.l10n.t(
       "The OmniRoute server URL is now {0}. The stored API key was saved for {1} and is not being sent to the new server.",
-      serverRootUrl(connection.baseUrl),
-      connection.approvedOrigins.at(-1) ?? ""
+      displayUrl(serverRootUrl(connection.baseUrl)),
+      displayUrl(connection.approvedOrigins.at(-1))
     ),
     useHere,
     openPanel
@@ -347,7 +421,8 @@ export function describeProbeFailure(
   timeoutMs: number
 ): { summary: string; hints: string[] } {
   return explainProbeFailure(result, {
-    url: serverRootUrl(baseUrl),
+    // The summary is shown in a notification by "Check Connection".
+    url: displayUrl(serverRootUrl(baseUrl)),
     timeoutSeconds: Math.round(timeoutMs / 1000),
     remoteName: vscode.env.remoteName,
     isLoopback: isLoopbackOrigin(originOf(baseUrl)),

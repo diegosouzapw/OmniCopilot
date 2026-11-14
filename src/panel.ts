@@ -5,6 +5,7 @@ import {
   clearApiKey,
   describeProbeFailure,
   keyWithheldMessage,
+  plainNotificationText,
   rebindApiKey,
   resolveConnection,
   storeApiKey,
@@ -106,7 +107,7 @@ export class OmniPanelProvider implements vscode.WebviewViewProvider {
         await this.handleMessage(msg);
       } catch (err) {
         this.log.error(`Panel message failed: ${String(err)}`);
-        void vscode.window.showErrorMessage(`OmniRoute: ${String(err)}`);
+        void vscode.window.showErrorMessage(`OmniRoute: ${plainNotificationText(String(err))}`);
       }
     });
 
@@ -437,7 +438,7 @@ export class OmniPanelProvider implements vscode.WebviewViewProvider {
       else { d.style.display = "none"; }
 
       // OmniCopilot #8 — the key's own spend. Build with textContent/createElement
-      // only: quota numbers come from the server and must never reach innerHTML.
+      // only: quota numbers come from the server and must never be parsed as markup.
       const usageEl = $("usage");
       const usageBody = $("usageBody");
       usageBody.textContent = "";
