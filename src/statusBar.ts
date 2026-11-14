@@ -17,6 +17,30 @@ export function applyStatus(
   return next;
 }
 
+/**
+ * Whether the model picker should be listed again. Only a poll asks for it, and
+ * only when it moved the status to `online` on a 2xx answer: a 401/403 counts as
+ * "the server is there" but the listing would be rejected too, and a transition
+ * caused by the provider reporting a finished request must not trigger another
+ * listing.
+ */
+export function shouldRefreshModels(args: {
+  previous: Status;
+  next: "online" | "offline";
+  probeStatus: number | undefined;
+  source: "poll" | "activity";
+}): boolean {
+  const { previous, next, probeStatus, source } = args;
+  return (
+    source === "poll" &&
+    next === "online" &&
+    previous !== "online" &&
+    probeStatus !== undefined &&
+    probeStatus >= 200 &&
+    probeStatus < 300
+  );
+}
+
 /** Status-bar "dot": green when the OmniRoute server answers the HEAD
  * /v1/models probe, red when it does not. Click → quick actions menu. */
 export class ConnectionStatusBar implements vscode.Disposable {
@@ -31,7 +55,9 @@ export class ConnectionStatusBar implements vscode.Disposable {
     private readonly getClient: () => Promise<OmniRouteClient>,
     private readonly log: vscode.LogOutputChannel,
     private readonly onStatusChange?: (status: "online" | "offline") => void,
-    private readonly getConnection?: () => Promise<Connection>
+    private readonly getConnection?: () => Promise<Connection>,
+    /** Called when a poll found the server accepting requests again (see `shouldRefreshModels`). */
+    private readonly onModelsReachable?: () => void
   ) {
     this.item = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 90);
     this.item.name = "OmniRoute";
@@ -64,7 +90,19 @@ export class ConnectionStatusBar implements vscode.Disposable {
     this.lastFailure = result.ok
       ? undefined
       : describeProbeFailure(client.baseUrl, result, PROBE_TIMEOUT_MS).summary;
-    this.setStatus(result.ok ? "online" : "offline");
+    const previous = this.status;
+    const next = result.ok ? "online" : "offline";
+    this.setStatus(next);
+    if (
+      shouldRefreshModels({
+        previous,
+        next,
+        probeStatus: result.ok ? result.status : undefined,
+        source: "poll",
+      })
+    ) {
+      this.onModelsReachable?.();
+    }
     return result.ok;
   }
 
