@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   REASONING_EFFORTS,
+  effortTiersFor,
   isReasoningModel,
   normalizeReasoningEffort,
   resolveReasoningEffort,
@@ -17,10 +18,23 @@ describe("normalizeReasoningEffort", () => {
     expect(normalizeReasoningEffort("  HIGH ")).toBe("high");
   });
 
-  it("collapses the top-tier synonyms onto xhigh", () => {
-    expect(normalizeReasoningEffort("max")).toBe("xhigh");
+  it("keeps max as its own tier", () => {
+    expect(normalizeReasoningEffort("max")).toBe("max");
+  });
+
+  it("maps extra onto xhigh and ultra onto max", () => {
     expect(normalizeReasoningEffort("extra")).toBe("xhigh");
-    expect(normalizeReasoningEffort("ultra")).toBe("xhigh");
+    expect(normalizeReasoningEffort("ultra")).toBe("max");
+  });
+
+  it("accepts a tier the model advertises even when it is not canonical", () => {
+    expect(normalizeReasoningEffort("ultra", ["low", "high", "ultra"])).toBe("ultra");
+    expect(normalizeReasoningEffort(" ULTRA ", ["ultra"])).toBe("ultra");
+  });
+
+  it("maps the off synonyms onto none", () => {
+    expect(normalizeReasoningEffort("off")).toBe("none");
+    expect(normalizeReasoningEffort("disabled")).toBe("none");
   });
 
   it("maps OpenAI's 'minimal' onto low instead of forwarding it verbatim", () => {
@@ -33,6 +47,17 @@ describe("normalizeReasoningEffort", () => {
     for (const value of ["", "   ", "turbo", "7", null, undefined, 3, {}, []]) {
       expect(normalizeReasoningEffort(value)).toBeUndefined();
     }
+  });
+});
+
+describe("effortTiersFor", () => {
+  it("returns the tiers the model advertises", () => {
+    expect(effortTiersFor({ capabilities: { effort_tiers: ["low", "high"] } })).toEqual(["low", "high"]);
+  });
+
+  it("falls back to the canonical list when none are advertised", () => {
+    expect(effortTiersFor({})).toEqual([...REASONING_EFFORTS]);
+    expect(effortTiersFor({ capabilities: { effort_tiers: [] } })).toEqual([...REASONING_EFFORTS]);
   });
 });
 
@@ -108,5 +133,38 @@ describe("resolveReasoningEffort", () => {
     expect(
       resolveReasoningEffort({ configuredDefault: "very-high", modelIsReasoning: true })
     ).toBeUndefined();
+  });
+});
+
+describe("resolveReasoningEffort with the model picker", () => {
+  it("prefers the picker choice in modelConfiguration over modelOptions and the default", () => {
+    expect(
+      resolveReasoningEffort({
+        modelConfiguration: { reasoningEffort: "max" },
+        modelOptions: { reasoning_effort: "low" },
+        configuredDefault: "medium",
+        modelIsReasoning: true,
+      })
+    ).toBe("max");
+  });
+
+  it("normalizes the picker choice against the tiers the model advertises", () => {
+    expect(
+      resolveReasoningEffort({
+        modelConfiguration: { reasoningEffort: "ultra" },
+        modelIsReasoning: true,
+        modelTiers: ["high", "ultra"],
+      })
+    ).toBe("ultra");
+  });
+
+  it("falls through to modelOptions when the picker sent nothing usable", () => {
+    expect(
+      resolveReasoningEffort({
+        modelConfiguration: { reasoningEffort: 3 },
+        modelOptions: { effort: "high" },
+        modelIsReasoning: true,
+      })
+    ).toBe("high");
   });
 });

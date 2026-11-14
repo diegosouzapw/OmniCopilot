@@ -7,8 +7,16 @@ export interface OmniRouteModel {
   id: string;
   object?: string;
   owned_by?: string;
+  /** Human-readable name. OmniRoute sends `name`; `display_name` is kept for
+   * servers that use it and wins when both are present. */
+  name?: string;
   display_name?: string;
   context_length?: number;
+  /** What OmniRoute's catalog really sends for the output ceiling. */
+  max_output_tokens?: number;
+  /** Input ceiling, when smaller than the context window minus the output. */
+  max_input_tokens?: number;
+  /** OpenAI-style name for the output ceiling; read as a fallback. */
   max_completion_tokens?: number;
   /** Absent (or "chat") for conversational models; "audio", "image",
    * "embedding", "rerank", "video", "moderation"… for specialty registries
@@ -27,6 +35,8 @@ export interface OmniRouteModel {
     attachment?: boolean;
     structured_output?: boolean;
     thinking?: boolean;
+    /** Reasoning tiers the model accepts, in the server's vocabulary. */
+    effort_tiers?: string[];
     [key: string]: unknown;
   };
 }
@@ -74,7 +84,7 @@ export interface ChatRequest {
   tool_choice?: "auto" | "required";
   temperature?: number;
   max_tokens?: number;
-  /** Canonical reasoning tier (none/low/medium/high/xhigh). OmniRoute maps it
+  /** Canonical reasoning tier (none/low/medium/high/xhigh/max). OmniRoute maps it
    * onto each provider's own field — reasoning_effort, reasoning.effort or a
    * thinking budget — and an explicit value here always wins over its own
    * heuristics. Plain OpenAI-compatible servers read it natively. */

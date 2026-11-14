@@ -201,7 +201,8 @@
             "low",
             "medium",
             "high",
-            "xhigh"
+            "xhigh",
+            "max"
           ],
           "enumDescriptions": [
             "%cfg.defaultReasoningEffort.unset%",
@@ -209,7 +210,8 @@
             "%cfg.defaultReasoningEffort.low%",
             "%cfg.defaultReasoningEffort.medium%",
             "%cfg.defaultReasoningEffort.high%",
-            "%cfg.defaultReasoningEffort.xhigh%"
+            "%cfg.defaultReasoningEffort.xhigh%",
+            "%cfg.defaultReasoningEffort.max%"
           ],
           "default": "",
           "order": 8,
