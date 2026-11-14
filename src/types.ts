@@ -123,7 +123,22 @@ export interface StreamChunk {
     delta?: StreamDelta;
     finish_reason?: string | null;
   }>;
-  error?: { message?: string };
+  error?: StreamErrorBody;
+}
+
+/** `error` object of an OpenAI-compatible server, in a stream or an HTTP body.
+ * Servers differ on which fields they send; every one is optional. OmniRoute
+ * adds `reset_seconds` (and an ISO `retry_after`) to model-cooldown errors. */
+export interface StreamErrorBody {
+  message?: string;
+  status?: number | string;
+  status_code?: number | string;
+  /** Numeric on some servers, a symbolic name (`model_cooldown`) on OmniRoute. */
+  code?: number | string;
+  retry_after_seconds?: number;
+  reset_seconds?: number;
+  /** ISO timestamp. */
+  retry_after?: string;
 }
 
 /** Normalized streaming events yielded by the client. */

@@ -11,6 +11,7 @@ import {
   resolveReasoningEffort,
   type EffortSchema,
 } from "./reasoning";
+import { DEFAULT_RETRY_POLICY, nextRetryDelay } from "./retry";
 import { createToolNameAliases } from "./toolNames";
 import type { ChatRequest, OmniRouteModel, StreamUsage } from "./types";
 import { USAGE_MIME_TYPE, buildUsagePayload } from "./usage";
@@ -73,6 +74,22 @@ function historicalToolNames(messages: readonly vscode.LanguageModelChatRequestM
     }
   }
   return names;
+}
+
+/** Sleep for `ms`; resolves true if the request was cancelled meanwhile. */
+function waitUnlessCancelled(ms: number, token: vscode.CancellationToken): Promise<boolean> {
+  return new Promise<boolean>((resolve) => {
+    if (token.isCancellationRequested) return resolve(true);
+    const timer = setTimeout(() => {
+      sub.dispose();
+      resolve(false);
+    }, ms);
+    const sub = token.onCancellationRequested(() => {
+      clearTimeout(timer);
+      sub.dispose();
+      resolve(true);
+    });
+  });
 }
 
 function getConfig() {
@@ -283,49 +300,79 @@ export class OmniRouteChatProvider
     const abort = new AbortController();
     const cancelSub = token.onCancellationRequested(() => abort.abort());
 
-    let serverUsage: StreamUsage | null = null;
-    let completionChars = 0;
+    const startedAt = Date.now();
+    let retries = 0;
 
     try {
-      for await (const event of client.streamChat(request, abort.signal)) {
-        if (token.isCancellationRequested) break;
-        if (event.kind === "usage") {
-          serverUsage = event.usage;
-        } else if (event.kind === "text") {
-          completionChars += event.text.length;
-          progress.report(new vscode.LanguageModelTextPart(event.text));
-        } else {
-          let input: Record<string, unknown>;
-          try {
-            input = JSON.parse(event.args) as Record<string, unknown>;
-          } catch {
-            log.warn(`Tool call ${event.name} had invalid JSON args; sending {}`);
-            input = {};
+      for (;;) {
+        // Once text or a tool call has reached the editor the answer cannot be
+        // started over; the usage part is bookkeeping and does not count.
+        let streamedOutput = false;
+        let serverUsage: StreamUsage | null = null;
+        let completionChars = 0;
+
+        try {
+          for await (const event of client.streamChat(request, abort.signal)) {
+            if (token.isCancellationRequested) break;
+            if (event.kind === "usage") {
+              serverUsage = event.usage;
+            } else if (event.kind === "text") {
+              streamedOutput = true;
+              completionChars += event.text.length;
+              progress.report(new vscode.LanguageModelTextPart(event.text));
+            } else {
+              streamedOutput = true;
+              let input: Record<string, unknown>;
+              try {
+                input = JSON.parse(event.args) as Record<string, unknown>;
+              } catch {
+                log.warn(`Tool call ${event.name} had invalid JSON args; sending {}`);
+                input = {};
+              }
+              progress.report(
+                new vscode.LanguageModelToolCallPart(event.id, aliases.fromWire(event.name), input)
+              );
+            }
           }
-          progress.report(
-            new vscode.LanguageModelToolCallPart(event.id, aliases.fromWire(event.name), input)
+          if (!token.isCancellationRequested) {
+            // VS Code's chat reads this part to drive the Context Window widget.
+            const { payload, estimated } = buildUsagePayload(serverUsage, {
+              promptChars: JSON.stringify(request.messages).length,
+              completionChars,
+            });
+            progress.report(
+              new vscode.LanguageModelDataPart(
+                new TextEncoder().encode(JSON.stringify(payload)),
+                USAGE_MIME_TYPE
+              )
+            );
+            log.debug(
+              `Usage ← ${model.omniModelId}: ${payload.prompt_tokens}+${payload.completion_tokens}${estimated ? " (estimated)" : ""}`
+            );
+          }
+          this.deps.onActivity?.(true);
+          return;
+        } catch (err) {
+          if (token.isCancellationRequested) return;
+          const delay = streamedOutput
+            ? null
+            : nextRetryDelay(err, retries, Date.now() - startedAt, DEFAULT_RETRY_POLICY);
+          if (delay === null) {
+            this.deps.onActivity?.(false);
+            log.error(`Chat request failed: ${String(err)}`);
+            if (retries > 0 && err instanceof Error) {
+              err.message = vscode.l10n.t("{0} (retried {1}×)", err.message, retries);
+            }
+            throw err;
+          }
+          retries++;
+          log.warn(
+            `Chat request to ${model.omniModelId} failed (${String(err)}); ` +
+              `retry ${retries}/${DEFAULT_RETRY_POLICY.maxRetries} in ${(delay / 1000).toFixed(1)} s`
           );
+          if (await waitUnlessCancelled(delay, token)) return;
         }
       }
-      if (!token.isCancellationRequested) {
-        // VS Code's chat reads this part to drive the Context Window widget.
-        const { payload, estimated } = buildUsagePayload(serverUsage, {
-          promptChars: JSON.stringify(request.messages).length,
-          completionChars,
-        });
-        progress.report(
-          new vscode.LanguageModelDataPart(new TextEncoder().encode(JSON.stringify(payload)), USAGE_MIME_TYPE)
-        );
-        log.debug(
-          `Usage ← ${model.omniModelId}: ${payload.prompt_tokens}+${payload.completion_tokens}${estimated ? " (estimated)" : ""}`
-        );
-      }
-      this.deps.onActivity?.(true);
-    } catch (err) {
-      if (token.isCancellationRequested) return;
-      this.deps.onActivity?.(false);
-      log.error(`Chat request failed: ${String(err)}`);
-      throw err;
     } finally {
       cancelSub.dispose();
     }

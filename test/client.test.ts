@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { DEFAULT_BASE_URL, OmniRouteClient, normalizeBaseUrl, serverRootUrl } from "../src/client";
+import {
+  DEFAULT_BASE_URL,
+  OmniRouteClient,
+  OmniRouteRequestError,
+  normalizeBaseUrl,
+  serverRootUrl,
+} from "../src/client";
 import type { StreamEvent } from "../src/types";
 
 function sseResponse(lines: string[]): Response {
@@ -162,6 +168,153 @@ describe("OmniRouteClient.streamChat", () => {
     await collect(new OmniRouteClient({ baseUrl: "http://x/v1" }));
     headers = fetchMock.mock.calls[0][1].headers as Record<string, string>;
     expect(headers.Authorization).toBeUndefined();
+  });
+});
+
+describe("OmniRouteClient.streamChat errors", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+  });
+
+  async function failure(client: OmniRouteClient): Promise<OmniRouteRequestError> {
+    try {
+      await collect(client);
+    } catch (err) {
+      expect(err).toBeInstanceOf(OmniRouteRequestError);
+      return err as OmniRouteRequestError;
+    }
+    throw new Error("expected the request to fail");
+  }
+
+  const client = () => new OmniRouteClient({ baseUrl: "http://x/v1" });
+  const json = (body: unknown, status: number, headers: Record<string, string> = {}) =>
+    new Response(JSON.stringify(body), { status, headers });
+
+  it("carries the status and Retry-After of a rejected request", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        json({ error: { message: "All credentials for model m are cooling down" } }, 429, {
+          "Retry-After": "24",
+        })
+      )
+    );
+    const err = await failure(client());
+    expect(err.info).toEqual({ status: 429, retryAfterMs: 24_000 });
+    expect(err.message).toBe(
+      "OmniRoute request failed (HTTP 429): All credentials for model m are cooling down"
+    );
+  });
+
+  it("falls back to the reset hint in the body when there is no Retry-After header", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        json({ error: { message: "cooling down", code: "model_cooldown", reset_seconds: 7 } }, 429)
+      )
+    );
+    expect((await failure(client())).info).toEqual({ status: 429, retryAfterMs: 7_000 });
+  });
+
+  it("reads retry_after_seconds and an ISO retry_after from the body", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    fetchMock.mockResolvedValueOnce(
+      json({ error: { message: "busy", retry_after_seconds: 3 } }, 503)
+    );
+    expect((await failure(client())).info.retryAfterMs).toBe(3_000);
+
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-11-14T12:00:00Z"));
+    fetchMock.mockResolvedValueOnce(
+      json({ error: { message: "busy", retry_after: "2026-11-14T12:00:09Z" } }, 429)
+    );
+    expect((await failure(client())).info.retryAfterMs).toBe(9_000);
+  });
+
+  it("prefers the Retry-After header over the body", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        json({ error: { message: "x", reset_seconds: 99 } }, 429, { "Retry-After": "2" })
+      )
+    );
+    expect((await failure(client())).info.retryAfterMs).toBe(2_000);
+  });
+
+  it("has no retry hint on an error that carries none", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(json({ error: { message: "no such model" } }, 404))
+    );
+    expect((await failure(client())).info).toEqual({ status: 404, retryAfterMs: undefined });
+  });
+
+  it("carries the status and reset hint of an error that arrives inside the stream", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        sseResponse(['data: {"error":{"message":"[x/y] [503]: busy (reset after 24s)"}}'])
+      )
+    );
+    const err = await failure(client());
+    expect(err.info).toEqual({ status: 503, retryAfterMs: 24_000 });
+    expect(err.message).toBe("[x/y] [503]: busy (reset after 24s)");
+  });
+
+  it("prefers the fields of an in-stream error over its message", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        sseResponse([
+          'data: {"error":{"message":"[503]: busy (reset after 24s)","status":429,"retry_after_seconds":3}}',
+        ])
+      )
+    );
+    expect((await failure(client())).info).toEqual({ status: 429, retryAfterMs: 3_000 });
+  });
+
+  it("reads the status of an in-stream error from status_code or a numeric code", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    fetchMock.mockResolvedValueOnce(
+      sseResponse(['data: {"error":{"message":"x","status_code":502}}'])
+    );
+    expect((await failure(client())).info.status).toBe(502);
+    fetchMock.mockResolvedValueOnce(sseResponse(['data: {"error":{"message":"x","code":504}}']));
+    expect((await failure(client())).info.status).toBe(504);
+    // a symbolic code is not a status
+    fetchMock.mockResolvedValueOnce(
+      sseResponse(['data: {"error":{"message":"x","code":"model_cooldown"}}'])
+    );
+    expect((await failure(client())).info.status).toBeUndefined();
+  });
+
+  it("reads the reset hint OmniRoute puts in an in-stream error body", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        sseResponse(['data: {"error":{"message":"cooling down","reset_seconds":5}}'])
+      )
+    );
+    expect((await failure(client())).info.retryAfterMs).toBe(5_000);
+  });
+
+  it("marks a failed fetch as a network error and keeps the cause", async () => {
+    const cause = new Error("connect ECONNREFUSED 127.0.0.1:20128");
+    const failed = new TypeError("fetch failed", { cause });
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(failed));
+    const err = await failure(client());
+    expect(err.info).toEqual({ network: true });
+    expect(err.cause).toBe(failed);
+    expect(err.message).toContain("ECONNREFUSED");
+  });
+
+  it("lets an aborted request propagate untouched", async () => {
+    const aborted = new DOMException("This operation was aborted", "AbortError");
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(aborted));
+    await expect(collect(client())).rejects.toBe(aborted);
   });
 });
 
