@@ -283,7 +283,7 @@ export class OmniPanelProvider implements vscode.WebviewViewProvider {
     --omni-accent: #e5ac82; --omni-accent-hover: #edb78b; --omni-accent-fg: #241b15;
     --omni-link: #8f4d26; --omni-focus: #99562f;
     --omni-ok: #3c735b; --omni-warn: #8a591c; --omni-danger: #ae4340;
-    --omni-track: rgba(32,33,28,.18); --omni-bar: var(--omni-accent);
+    --omni-track: rgba(32,33,28,.18); --omni-track-outline: none; --omni-bar: var(--omni-accent);
   }
   body.vscode-dark {
     --omni-link: #e5ac82; --omni-focus: #e5ac82;
@@ -296,8 +296,11 @@ export class OmniPanelProvider implements vscode.WebviewViewProvider {
     --omni-accent-fg: var(--vscode-button-foreground, var(--vscode-foreground));
     --omni-link: var(--vscode-textLink-foreground); --omni-focus: var(--vscode-focusBorder);
     --omni-ok: var(--vscode-charts-green); --omni-warn: var(--vscode-charts-orange); --omni-danger: var(--vscode-charts-red);
-    --omni-track: var(--vscode-widget-border);
-    /* widget.border and progressBar.background are both contrastBorder here: fill with the text colour. */
+    /* Usage bar: the track is an outline and the fill is the text colour, so the fill
+       is read against the editor background (widget.border and progressBar.background
+       are both contrastBorder here, which made fill and track one colour). */
+    --omni-track: transparent;
+    --omni-track-outline: 1px solid var(--vscode-contrastBorder, var(--vscode-foreground));
     --omni-bar: var(--vscode-foreground);
   }
   body { font-family: var(--vscode-font-family); color: var(--vscode-foreground); padding: 10px 14px; }
@@ -331,7 +334,7 @@ export class OmniPanelProvider implements vscode.WebviewViewProvider {
   .warn { color: var(--omni-warn); font-size: 11.5px; margin-top: 8px; word-break: break-word; white-space: pre-line; }
   .keyhint { font-size: 11px; color: var(--vscode-descriptionForeground); margin-top: 3px; }
   .usage-row { margin-bottom: 8px; }
-  .bar { height: 4px; margin-top: 4px; border-radius: 2px; background: var(--omni-track); overflow: hidden; }
+  .bar { height: 4px; margin-top: 4px; border-radius: 2px; background: var(--omni-track); outline: var(--omni-track-outline); overflow: hidden; }
   .bar-fill { height: 100%; border-radius: 2px; background: var(--omni-bar); }
   .foot { margin-top: 18px; font-size: 10.5px; line-height: 1.5; color: var(--vscode-descriptionForeground); }
   .foot a { color: var(--omni-link); text-decoration: underline; }
