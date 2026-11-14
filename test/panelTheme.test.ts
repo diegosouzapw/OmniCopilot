@@ -72,6 +72,19 @@ describe("panel theme rules", () => {
     expect(value("--omni-bar")).not.toContain("widget-border");
   });
 
+  it("draws the bar's track as an outline in high contrast, and leaves light and dark alone", () => {
+    const decls = rule(css, hc);
+    expect(decls).toContain("--omni-track: transparent");
+    expect(decls).toContain(
+      "--omni-track-outline: 1px solid var(--vscode-contrastBorder, var(--vscode-foreground))"
+    );
+    expect(decls).toContain("--omni-bar: var(--vscode-foreground)");
+    expect(rule(css, ".bar")).toContain("outline: var(--omni-track-outline)");
+    expect(rule(css, "body")).toContain("--omni-track-outline: none");
+    expect(rule(css, "body")).toContain("--omni-track: rgba(32,33,28,.18)");
+    expect(rule(css, "body.vscode-dark")).toContain("--omni-track: rgba(242,240,232,.18)");
+  });
+
   it("keeps the secondary hover on a defined colour", () => {
     expect(rule(css, "button.secondary:hover")).toEqual([
       "background: var(--vscode-button-secondaryHoverBackground, var(--vscode-button-secondaryBackground))",
