@@ -24,6 +24,10 @@ export const CLI_TOOLS: CliTool[] = [
   { id: "qwen", label: "Qwen Code", description: "Qwen coding CLI", subcommand: "setup-qwen" },
   { id: "kilo", label: "Kilo Code", description: "Kilo Code extension", subcommand: "setup-kilo" },
   { id: "roo", label: "Roo Code", description: "Roo Code extension", subcommand: "setup-roo" },
+  { id: "gemini", label: "Gemini CLI", description: "Google Gemini CLI — native endpoint", subcommand: "setup-gemini" },
+  { id: "zed", label: "Zed", description: "Zed editor — OpenAI-compatible provider", subcommand: "setup-zed" },
+  { id: "whycodes", label: "WhyCodes", description: "WhyCodes agent — config.toml provider", subcommand: "setup-whycodes" },
+  { id: "5dive", label: "5dive", description: "5dive agent fleet — auth profile for claude seats", subcommand: "setup-5dive" },
 ];
 
 const TERMINAL_NAME = "OmniRoute Setup";

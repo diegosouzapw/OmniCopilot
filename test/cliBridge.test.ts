@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveCliCommand } from "../src/cliBridge";
+import { CLI_TOOLS, resolveCliCommand } from "../src/cliBridge";
 
 const linux = { platform: "linux" as const };
 const cmdExe = { platform: "win32" as const, shellPath: "C:\\Windows\\System32\\cmd.exe" };
@@ -81,5 +81,19 @@ describe("resolveCliCommand", () => {
 
   it("rejects a value with mismatched quotes", () => {
     expect(resolveCliCommand(`"/opt/omniroute'`, linux)).toEqual({ ok: false });
+  });
+});
+
+describe("CLI_TOOLS", () => {
+  it("lists the Gemini, Zed, WhyCodes and 5dive setups", () => {
+    const subcommands = CLI_TOOLS.map((tool) => tool.subcommand);
+    for (const sub of ["setup-gemini", "setup-zed", "setup-whycodes", "setup-5dive"]) {
+      expect(subcommands).toContain(sub);
+    }
+  });
+
+  it("gives every tool a unique id and a setup-* subcommand", () => {
+    expect(new Set(CLI_TOOLS.map((tool) => tool.id)).size).toBe(CLI_TOOLS.length);
+    for (const tool of CLI_TOOLS) expect(tool.subcommand).toMatch(/^setup-[a-z0-9]+$/);
   });
 });
