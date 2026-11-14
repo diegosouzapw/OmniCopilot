@@ -29,6 +29,12 @@ interface PanelStatus {
   usage?: UsageView;
 }
 
+/** Sent instead of a status when building it failed. */
+interface PanelStatusError {
+  type: "statusError";
+  detail: string;
+}
+
 /** The only commands the webview may ask the extension host to run — exactly
  * the links the panel renders. Anything else a message names is ignored. */
 const ALLOWED_PANEL_COMMANDS: ReadonlySet<string> = new Set([
@@ -92,9 +98,17 @@ export class OmniPanelProvider implements vscode.WebviewViewProvider {
   async refreshStatus(): Promise<void> {
     if (!this.view) return;
     const gen = ++this.statusGen;
-    const status = await this.buildStatus();
+    let message: PanelStatus | PanelStatusError;
+    try {
+      message = await this.buildStatus();
+    } catch (err) {
+      // Reading the connection failed (SecretStorage, for one). Say so in the panel,
+      // so a failing newest refresh never leaves "Checking…" with nothing posted.
+      this.log.error(`Panel status failed: ${String(err)}`);
+      message = { type: "statusError", detail: `OmniRoute: ${plainNotificationText(String(err))}` };
+    }
     if (gen !== this.statusGen || !this.view) return;
-    void this.view.webview.postMessage(status);
+    void this.view.webview.postMessage(message);
   }
 
   resolveWebviewView(view: vscode.WebviewView): void {
@@ -239,6 +253,7 @@ export class OmniPanelProvider implements vscode.WebviewViewProvider {
       online: t("Online"),
       onlineBlocked: t("Online (models blocked)"),
       offline: t("Offline — server unreachable"),
+      statusFailed: t("Could not read the connection status."),
       linkRefresh: t("Refresh models in the picker"),
       linkDashboard: t("Open OmniRoute dashboard"),
       linkCli: t("Configure a coding CLI (Codex, Claude Code…)"),
@@ -403,6 +418,14 @@ export class OmniPanelProvider implements vscode.WebviewViewProvider {
 
     window.addEventListener("message", (event) => {
       const msg = event.data;
+      if (msg.type === "statusError") {
+        $("dot").className = "dot";
+        $("statusText").textContent = S.statusFailed;
+        const failure = $("detail");
+        failure.textContent = msg.detail;
+        failure.style.display = "block";
+        return;
+      }
       if (msg.type !== "status") return;
       $("dot").className = "dot" + (msg.online ? " on" : "");
       $("url").value = nextUrlFieldValue({

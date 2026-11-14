@@ -233,3 +233,45 @@ describe("panel document", () => {
     vi.restoreAllMocks();
   });
 });
+
+describe("panel status refresh that fails", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it("logs the failure and tells the panel instead of leaving it on Checking…", async () => {
+    vi.spyOn(OmniRouteClient.prototype, "probe").mockResolvedValue(offline);
+    setMockConfig({ baseUrl: "https://user.example" });
+    const context = {
+      secrets: {
+        get: async () => {
+          throw new Error("keychain locked");
+        },
+        store: async () => undefined,
+        delete: async () => undefined,
+      },
+      globalState: { get: () => undefined, update: async () => undefined },
+      workspaceState: { get: () => undefined, update: async () => undefined },
+    } as unknown as vscode.ExtensionContext;
+    const log = { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() };
+    const panel = new OmniPanelProvider(context, log as unknown as vscode.LogOutputChannel, async () => undefined);
+    const posted: Array<Record<string, unknown>> = [];
+    (panel as unknown as { view: unknown }).view = {
+      webview: { postMessage: async (message: Record<string, unknown>) => void posted.push(message) },
+    };
+
+    await expect(panel.refreshStatus()).resolves.toBeUndefined();
+
+    expect(log.error).toHaveBeenCalledWith(expect.stringContaining("keychain locked"));
+    expect(posted).toEqual([{ type: "statusError", detail: "OmniRoute: Error: keychain locked" }]);
+  });
+
+  it("renders the failure in the panel script", () => {
+    const { view } = fakeView();
+    const log = { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() };
+    vi.spyOn(OmniRouteClient.prototype, "probe").mockResolvedValue(offline);
+    new OmniPanelProvider(fakeContext(), log as unknown as vscode.LogOutputChannel, async () => undefined)
+      .resolveWebviewView(view);
+    const html = (view.webview as unknown as { html: string }).html;
+    expect(html).toContain('msg.type === "statusError"');
+    expect(html).toContain("Could not read the connection status.");
+  });
+});
