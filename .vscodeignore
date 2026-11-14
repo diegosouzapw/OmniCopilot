@@ -6,7 +6,7 @@ scripts/**
 node_modules/**
 esbuild.mjs
 tsconfig.json
-vitest.config.ts
+vitest.config.mts
 eslint.config.mjs
 **/*.map
 **/*.ts
