@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import * as vscode from "vscode";
-import { setMockConfig } from "./vscode.mock";
+import { setMockConfig, setMockInspect } from "./vscode.mock";
 import {
   SECRET_API_KEY,
   SECRET_API_KEY_ORIGINS,
@@ -14,14 +14,16 @@ import {
   warnIfKeyWithheld,
   isLoopbackOrigin,
   originOf,
-  showUpgradeNoticeOnce,
-  upgradeNotice,
+  ignoredWorkspaceUrl,
+  showIgnoredWorkspaceUrlNotice,
+  userLevelBaseUrl,
 } from "../src/connection";
 
 /** An extension context whose SecretStorage and globalState are plain maps. */
 function fakeContext(state: Record<string, unknown> = {}) {
   const secrets = new Map<string, string>();
   const global = new Map<string, unknown>(Object.entries(state));
+  const local = new Map<string, unknown>();
   const context = {
     secrets: {
       get: async (key: string) => secrets.get(key),
@@ -33,6 +35,13 @@ function fakeContext(state: Record<string, unknown> = {}) {
       update: async (key: string, value: unknown) => {
         if (value === undefined) global.delete(key);
         else global.set(key, value);
+      },
+    },
+    workspaceState: {
+      get: <T>(key: string, fallback?: T) => (local.has(key) ? (local.get(key) as T) : fallback),
+      update: async (key: string, value: unknown) => {
+        if (value === undefined) local.delete(key);
+        else local.set(key, value);
       },
     },
   };
@@ -146,72 +155,112 @@ describe("decideKeyUse", () => {
   });
 });
 
-describe("upgradeNotice", () => {
-  it("says nothing on a fresh install", () => {
-    expect(upgradeNotice({ welcomed: false, noticeVersion: undefined, hasStoredKey: true })).toBe("none");
-    expect(upgradeNotice({ welcomed: false, noticeVersion: undefined, hasStoredKey: false })).toBe("none");
-  });
-
-  it("announces the change once to an existing install, naming the key when one is stored", () => {
-    expect(upgradeNotice({ welcomed: true, noticeVersion: undefined, hasStoredKey: true })).toBe("with-key");
-    expect(upgradeNotice({ welcomed: true, noticeVersion: undefined, hasStoredKey: false })).toBe(
-      "without-key"
+describe("userLevelBaseUrl", () => {
+  it("uses the user-level value, then the default, then the built-in default", () => {
+    expect(userLevelBaseUrl({ globalValue: "https://u.example", defaultValue: "http://d:1" })).toBe(
+      "https://u.example"
     );
-    expect(upgradeNotice({ welcomed: true, noticeVersion: "1.3.0", hasStoredKey: false })).toBe(
-      "without-key"
-    );
-  });
-
-  it("says nothing once the 1.4.0 notice was shown", () => {
-    expect(upgradeNotice({ welcomed: true, noticeVersion: "1.4.0", hasStoredKey: true })).toBe("none");
+    expect(userLevelBaseUrl({ globalValue: "", defaultValue: "http://d:1" })).toBe("http://d:1");
+    expect(userLevelBaseUrl({ globalValue: "   ", defaultValue: "http://d:1" })).toBe("http://d:1");
+    expect(userLevelBaseUrl({ globalValue: 42, defaultValue: "http://d:1" })).toBe("http://d:1");
+    expect(userLevelBaseUrl({ globalValue: 42 })).toBe("http://localhost:20128");
+    expect(userLevelBaseUrl(undefined)).toBe("http://localhost:20128");
   });
 });
 
-describe("showUpgradeNoticeOnce", () => {
-  afterEach(() => vi.restoreAllMocks());
-
-  it("tells an existing install where the URL now comes from, once, and offers the panel", async () => {
-    setMockConfig({ baseUrl: "https://omni.example/v1" });
-    const context = fakeContext({ "omnicopilot.welcomed": true });
-    await context.secrets.store(SECRET_API_KEY, "sk-1");
-    const info = vi
-      .spyOn(vscode.window, "showInformationMessage")
-      .mockResolvedValue("Open panel" as never);
-    const run = vi.spyOn(vscode.commands, "executeCommand");
-
-    await showUpgradeNoticeOnce(context);
-    await showUpgradeNoticeOnce(context);
-
-    expect(info).toHaveBeenCalledTimes(1);
-    expect(info.mock.calls[0]).toEqual([
-      "OmniRoute now reads the server URL only from your user settings. It is https://omni.example, and a URL set in a workspace's settings is no longer used. Your API key is tied to that server.",
-      "Open panel",
-    ]);
-    expect(run).toHaveBeenCalledWith("omnicopilot.manage");
-    expect(context.globalState.get("omnicopilot.noticeVersion")).toBe("1.4.0");
+describe("resolveConnection reads the server URL from the user level only", () => {
+  it.each([
+    ["a workspace value", { workspaceValue: "https://ws.example" }],
+    ["a folder value", { workspaceFolderValue: "https://folder.example" }],
+    ["a language-specific value", { workspaceLanguageValue: "https://l.example", globalLanguageValue: "https://gl.example", defaultLanguageValue: "https://dl.example", workspaceFolderLanguageValue: "https://fl.example" }],
+  ])("ignores %s", async (_name, fields) => {
+    setMockConfig({});
+    setMockInspect("baseUrl", { defaultValue: "http://localhost:20128", ...fields });
+    expect((await resolveConnection(fakeContext())).baseUrl).toBe("http://localhost:20128/v1");
   });
 
-  it("leaves the key sentence out when no key is stored", async () => {
-    setMockConfig({});
-    const context = fakeContext({ "omnicopilot.welcomed": true });
-    const info = vi.spyOn(vscode.window, "showInformationMessage");
+  it("uses the user-level value over a workspace value", async () => {
+    setMockConfig({ baseUrl: "https://user.example" });
+    setMockInspect("baseUrl", { workspaceValue: "https://ws.example" });
+    const connection = await resolveConnection(fakeContext());
+    expect(connection.baseUrl).toBe("https://user.example/v1");
+    expect(connection.ignoredWorkspaceUrl).toBe("https://ws.example");
+  });
 
-    await showUpgradeNoticeOnce(context);
+  it.each([[""], [42], [null]])("falls back to the default for the user value %j", async (value) => {
+    setMockConfig({ baseUrl: value });
+    setMockInspect("baseUrl", { defaultValue: "http://localhost:20128" });
+    expect((await resolveConnection(fakeContext())).baseUrl).toBe("http://localhost:20128/v1");
+  });
+});
 
-    expect(info.mock.calls[0][0]).toBe(
-      "OmniRoute now reads the server URL only from your user settings. It is http://localhost:20128, and a URL set in a workspace's settings is no longer used."
+describe("ignoredWorkspaceUrl", () => {
+  const effectiveRoot = "http://localhost:20128";
+
+  it("names the folder value first, then the workspace value", () => {
+    expect(
+      ignoredWorkspaceUrl({
+        workspaceValue: "https://ws.example",
+        workspaceFolderValue: "https://folder.example",
+        effectiveRoot,
+      })
+    ).toBe("https://folder.example");
+    expect(ignoredWorkspaceUrl({ workspaceValue: "https://ws.example", effectiveRoot })).toBe(
+      "https://ws.example"
     );
   });
 
-  it("only sets the marker on a fresh install", async () => {
-    setMockConfig({});
-    const context = fakeContext({});
+  it("says nothing when the value equals the effective URL after normalisation", () => {
+    expect(ignoredWorkspaceUrl({ workspaceValue: "localhost:20128/v1/", effectiveRoot })).toBeUndefined();
+    expect(
+      ignoredWorkspaceUrl({
+        workspaceValue: "https://ws.example",
+        workspaceFolderValue: " http://localhost:20128 ",
+        effectiveRoot,
+      })
+    ).toBeUndefined();
+  });
+
+  it("says nothing without a non-empty string", () => {
+    expect(ignoredWorkspaceUrl({ effectiveRoot })).toBeUndefined();
+    expect(ignoredWorkspaceUrl({ workspaceValue: "", workspaceFolderValue: "  ", effectiveRoot })).toBeUndefined();
+    expect(ignoredWorkspaceUrl({ workspaceValue: 42, effectiveRoot })).toBeUndefined();
+  });
+});
+
+describe("showIgnoredWorkspaceUrlNotice", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it("tells the user once per ignored value, and again when it changes", async () => {
+    setMockConfig({ baseUrl: "https://user.example" });
+    setMockInspect("baseUrl", { workspaceValue: "https://ws.example" });
+    const info = vi.spyOn(vscode.window, "showInformationMessage").mockResolvedValue("Open panel" as never);
+    const run = vi.spyOn(vscode.commands, "executeCommand");
+    const context = fakeContext();
+
+    await showIgnoredWorkspaceUrlNotice(context);
+    await showIgnoredWorkspaceUrlNotice(context);
+    expect(info).toHaveBeenCalledTimes(1);
+    expect(info.mock.calls[0]).toEqual([
+      "This workspace's settings set an OmniRoute server URL (https://ws.example). It is not used: the server URL is read from your user settings, and it is https://user.example.",
+      "Open panel",
+    ]);
+    expect(run).toHaveBeenCalledWith("omnicopilot.manage");
+    expect(context.workspaceState.get("omnicopilot.ignoredUrlNotice")).toBe("https://ws.example");
+
+    setMockInspect("baseUrl", { workspaceValue: "https://other.example" });
+    await showIgnoredWorkspaceUrlNotice(context);
+    expect(info).toHaveBeenCalledTimes(2);
+    expect(info.mock.calls[1][0]).toContain("(https://other.example)");
+  });
+
+  it("says nothing when no workspace value differs from the user-level URL", async () => {
     const info = vi.spyOn(vscode.window, "showInformationMessage");
-
-    await showUpgradeNoticeOnce(context);
-
+    setMockConfig({ baseUrl: "https://user.example" });
+    await showIgnoredWorkspaceUrlNotice(fakeContext());
+    setMockInspect("baseUrl", { workspaceValue: "https://user.example/v1" });
+    await showIgnoredWorkspaceUrlNotice(fakeContext());
     expect(info).not.toHaveBeenCalled();
-    expect(context.globalState.get("omnicopilot.noticeVersion")).toBe("1.4.0");
   });
 });
 

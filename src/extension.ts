@@ -5,7 +5,7 @@ import {
   SECRET_API_KEY,
   clearApiKey,
   resolveConnection,
-  showUpgradeNoticeOnce,
+  showIgnoredWorkspaceUrlNotice,
   storeApiKey,
   warnIfKeyWithheld,
 } from "./connection";
@@ -78,12 +78,16 @@ export function activate(context: vscode.ExtensionContext): void {
         await provider?.refresh();
         await panel?.refreshStatus();
       }).catch((err: unknown) => log.warn(`Withheld-key check failed: ${String(err)}`));
+      void showIgnoredWorkspaceUrlNotice(context).catch((err: unknown) =>
+        log.warn(`Workspace URL check failed: ${String(err)}`)
+      );
     })
   );
 
   statusBar.start();
-  // Before the first-run welcome, which marks a fresh install as welcomed.
-  void showUpgradeNoticeOnce(context);
+  void showIgnoredWorkspaceUrlNotice(context).catch((err: unknown) =>
+    log.warn(`Workspace URL check failed: ${String(err)}`)
+  );
   void checkFirstRun(context, log);
 }
 

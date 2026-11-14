@@ -12,11 +12,8 @@ export const SECRET_API_KEY_ORIGINS = "omnicopilot.apiKeyOrigins";
 const MAX_APPROVED_ORIGINS = 5;
 /** globalState entry listing the plain-HTTP origins the user was already warned about. */
 const STATE_INSECURE_WARNED = "omnicopilot.insecureOriginsWarned";
-/** globalState entry set by the first-run welcome; present means an existing install. */
-const STATE_WELCOMED = "omnicopilot.welcomed";
-/** globalState entry naming the release whose one-time notice was already handled. */
-const STATE_NOTICE_VERSION = "omnicopilot.noticeVersion";
-const NOTICE_VERSION = "1.4.0";
+/** workspaceState entry holding the ignored workspace URL the user was last told about. */
+const STATE_IGNORED_URL_NOTICE = "omnicopilot.ignoredUrlNotice";
 
 export interface Connection {
   /** Normalized API base URL (always ends in `/v1`). */
@@ -30,6 +27,8 @@ export interface Connection {
   keyWithheld: boolean;
   /** Origins the user approved for the stored key, newest last. */
   approvedOrigins: string[];
+  /** A server URL this workspace's settings set and that is not used (see `ignoredWorkspaceUrl`). */
+  ignoredWorkspaceUrl: string | undefined;
 }
 
 /** Scheme, lower-case host and port of a base URL, without any path. */
@@ -105,17 +104,68 @@ async function writeApprovedOrigins(
   await context.secrets.store(SECRET_API_KEY_ORIGINS, JSON.stringify(origins));
 }
 
-function configuredBaseUrl(): string {
-  return normalizeBaseUrl(
-    vscode.workspace
-      .getConfiguration("omnicopilot")
-      .get<string>("baseUrl", DEFAULT_BASE_URL)
-  );
+/** The fields of `inspect("baseUrl")` the server URL may come from. */
+interface InspectedUrl {
+  globalValue?: unknown;
+  defaultValue?: unknown;
+  workspaceValue?: unknown;
+  workspaceFolderValue?: unknown;
 }
 
-/** The one place that reads `omnicopilot.baseUrl` and the stored API key. */
+/**
+ * The server URL as the user set it: the user-level value (in a remote window VS
+ * Code merges the remote machine's settings into it), else the declared default,
+ * else the built-in one. Workspace, folder and language-specific values are never
+ * read, so a repository cannot point the extension, and the key, elsewhere.
+ */
+export function userLevelBaseUrl(inspected: InspectedUrl | undefined): string {
+  for (const value of [inspected?.globalValue, inspected?.defaultValue]) {
+    if (typeof value === "string" && value.trim()) return value;
+  }
+  return DEFAULT_BASE_URL;
+}
+
+/**
+ * The URL a workspace's settings set but that is not used: the folder value, else
+ * the workspace value (the one VS Code would have applied), when it is a
+ * non-empty string whose root differs from the effective one.
+ */
+export function ignoredWorkspaceUrl(args: {
+  workspaceValue?: unknown;
+  workspaceFolderValue?: unknown;
+  effectiveRoot: string;
+}): string | undefined {
+  const candidate = [args.workspaceFolderValue, args.workspaceValue].find(
+    (value): value is string => typeof value === "string" && value.trim() !== ""
+  );
+  if (candidate === undefined) return undefined;
+  return serverRootUrl(candidate) === args.effectiveRoot ? undefined : candidate.trim();
+}
+
+/** The only read of the `omnicopilot.baseUrl` setting. */
+function readUrlSetting(): { baseUrl: string; ignoredWorkspaceUrl: string | undefined } {
+  const inspected = vscode.workspace
+    .getConfiguration("omnicopilot")
+    .inspect<string>("baseUrl") as InspectedUrl | undefined;
+  const baseUrl = normalizeBaseUrl(userLevelBaseUrl(inspected));
+  return {
+    baseUrl,
+    ignoredWorkspaceUrl: ignoredWorkspaceUrl({
+      workspaceValue: inspected?.workspaceValue,
+      workspaceFolderValue: inspected?.workspaceFolderValue,
+      effectiveRoot: serverRootUrl(baseUrl),
+    }),
+  };
+}
+
+function configuredBaseUrl(): string {
+  return readUrlSetting().baseUrl;
+}
+
+/** The one place that resolves the server URL and the stored API key. */
 export async function resolveConnection(context: vscode.ExtensionContext): Promise<Connection> {
-  const baseUrl = configuredBaseUrl();
+  const setting = readUrlSetting();
+  const baseUrl = setting.baseUrl;
   const origin = originOf(baseUrl);
   const storedKey = (await context.secrets.get(SECRET_API_KEY)) || undefined;
   const approvedOrigins = await readApprovedOrigins(context);
@@ -132,51 +182,30 @@ export async function resolveConnection(context: vscode.ExtensionContext): Promi
     hasStoredKey: Boolean(storedKey),
     keyWithheld: decision.keyWithheld,
     approvedOrigins: decision.bindNow ? [origin] : (approvedOrigins ?? []),
+    ignoredWorkspaceUrl: setting.ignoredWorkspaceUrl,
   };
 }
 
 /**
- * Which one-time notice an activation owes the user about the server URL now being
- * read from user settings only. A fresh install has nothing to unlearn.
+ * On activation and on a configuration change: when this workspace's settings set
+ * a server URL that is not used, say so once per value (remembered per workspace).
  */
-export function upgradeNotice(args: {
-  welcomed: boolean;
-  noticeVersion: string | undefined;
-  hasStoredKey: boolean;
-}): "none" | "with-key" | "without-key" {
-  if (!args.welcomed || args.noticeVersion === NOTICE_VERSION) return "none";
-  return args.hasStoredKey ? "with-key" : "without-key";
-}
-
-/**
- * On activation: tell an existing install, once, that a workspace's server URL is
- * no longer read and which URL is in effect. A fresh install only gets the marker.
- */
-export async function showUpgradeNoticeOnce(context: vscode.ExtensionContext): Promise<void> {
-  // Read both markers before the first await: the first-run welcome sets
-  // `welcomed` on a fresh install as soon as it runs.
-  const welcomed = context.globalState.get<boolean>(STATE_WELCOMED) === true;
-  const noticeVersion = context.globalState.get<string>(STATE_NOTICE_VERSION);
-  if (noticeVersion === NOTICE_VERSION) return;
-  await context.globalState.update(STATE_NOTICE_VERSION, NOTICE_VERSION);
-  if (!welcomed) return;
-
-  const connection = await resolveConnection(context);
-  const notice = upgradeNotice({ welcomed, noticeVersion, hasStoredKey: connection.hasStoredKey });
-  if (notice === "none") return;
-  const root = serverRootUrl(connection.baseUrl);
-  const message =
-    notice === "with-key"
-      ? vscode.l10n.t(
-          "OmniRoute now reads the server URL only from your user settings. It is {0}, and a URL set in a workspace's settings is no longer used. Your API key is tied to that server.",
-          root
-        )
-      : vscode.l10n.t(
-          "OmniRoute now reads the server URL only from your user settings. It is {0}, and a URL set in a workspace's settings is no longer used.",
-          root
-        );
+export async function showIgnoredWorkspaceUrlNotice(context: vscode.ExtensionContext): Promise<void> {
+  const setting = readUrlSetting();
+  const ignored = setting.ignoredWorkspaceUrl;
+  if (ignored === undefined || ignored === context.workspaceState.get<string>(STATE_IGNORED_URL_NOTICE)) {
+    return;
+  }
+  await context.workspaceState.update(STATE_IGNORED_URL_NOTICE, ignored);
   const openPanel = vscode.l10n.t("Open panel");
-  const pick = await vscode.window.showInformationMessage(message, openPanel);
+  const pick = await vscode.window.showInformationMessage(
+    vscode.l10n.t(
+      "This workspace's settings set an OmniRoute server URL ({0}). It is not used: the server URL is read from your user settings, and it is {1}.",
+      ignored,
+      serverRootUrl(setting.baseUrl)
+    ),
+    openPanel
+  );
   if (pick === openPanel) void vscode.commands.executeCommand("omnicopilot.manage");
 }
 

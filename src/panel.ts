@@ -22,6 +22,8 @@ interface PanelStatus {
   modelCount: number | null;
   hasKey: boolean;
   detail?: string;
+  /** A server URL this workspace's settings set and that is ignored, in a sentence. */
+  urlNote?: string;
   /** OmniCopilot #8 — the key's own spend. Omitted (not null) when offline. */
   usage?: UsageView;
 }
@@ -197,6 +199,12 @@ export class OmniPanelProvider implements vscode.WebviewViewProvider {
       modelCount,
       hasKey: connection.hasStoredKey,
       detail,
+      urlNote: connection.ignoredWorkspaceUrl
+        ? vscode.l10n.t(
+            "This workspace's settings set another server URL ({0}). It is ignored.",
+            connection.ignoredWorkspaceUrl
+          )
+        : undefined,
       usage,
     };
   }
@@ -318,6 +326,7 @@ export class OmniPanelProvider implements vscode.WebviewViewProvider {
 
   <label for="url">${S.serverUrl}</label>
   <input id="url" type="text" placeholder="${DEFAULT_BASE_URL}" />
+  <div class="keyhint" id="urlNote" style="display:none"></div>
 
   <label for="key">${S.apiKey}</label>
   <input id="key" type="password" placeholder="${S.keyPlaceholder}" />
@@ -391,6 +400,9 @@ export class OmniPanelProvider implements vscode.WebviewViewProvider {
       });
       lastReportedUrl = msg.url;
       $("urlText").textContent = msg.url;
+      const note = $("urlNote");
+      note.textContent = msg.urlNote || "";
+      note.style.display = msg.urlNote ? "block" : "none";
       $("keyHint").textContent = msg.hasKey ? S.keyStored : S.keyNone;
       const st = $("statusText");
       st.textContent = "";

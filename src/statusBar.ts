@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { DEFAULT_BASE_URL, OmniRouteClient, serverRootUrl } from "./client";
+import { OmniRouteClient, serverRootUrl } from "./client";
 import { describeProbeFailure, keyWithheldMessage, type Connection } from "./connection";
 import type { ProbeResult } from "./diagnostics";
 
@@ -71,6 +71,8 @@ export class ConnectionStatusBar implements vscode.Disposable {
   private lastFailure: string | undefined;
   private keyNote: string | undefined;
   private keyWithheld = false;
+  /** Root of the server the last poll went to (from the resolved connection). */
+  private root = "";
   /** Whether the last poll was accepted (2xx); undefined before the first poll. */
   private lastPollOk: boolean | undefined;
 
@@ -107,6 +109,7 @@ export class ConnectionStatusBar implements vscode.Disposable {
 
   async checkNow(): Promise<boolean> {
     const client = await this.getClient();
+    this.root = serverRootUrl(client.baseUrl);
     const connection = await this.getConnection?.();
     this.keyNote = connection ? keyWithheldMessage(connection) : undefined;
     this.keyWithheld = connection?.keyWithheld ?? false;
@@ -152,8 +155,7 @@ export class ConnectionStatusBar implements vscode.Disposable {
   }
 
   private render(): void {
-    const cfg = vscode.workspace.getConfiguration("omnicopilot");
-    const root = serverRootUrl(cfg.get<string>("baseUrl", DEFAULT_BASE_URL));
+    const root = this.root;
     const look = statusPresentation({ status: this.status, keyWithheld: this.keyWithheld });
     this.item.text = look.text;
     this.item.color = look.color ? new vscode.ThemeColor(look.color) : undefined;

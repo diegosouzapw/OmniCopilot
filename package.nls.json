@@ -10,7 +10,7 @@
   "cmd.quickActions": "Quick Actions",
   "cmd.openSettings": "Open Settings",
   "view.connection": "Connection",
-  "cfg.baseUrl": "OmniRoute base URL (OpenAI-compatible). Point it at your local install or any remote OmniRoute instance.",
+  "cfg.baseUrl": "OmniRoute base URL (OpenAI-compatible). Point it at your local install or any remote OmniRoute instance. Read from your user settings (or the remote machine's); a value in a workspace's settings is ignored.",
   "cfg.statusBar": "Show the OmniRoute connection indicator in the status bar.",
   "cfg.healthCheckIntervalSeconds": "How often the status bar probes the OmniRoute server (seconds).",
   "cfg.maxOutputTokens": "Maximum output tokens reserved per response.",
