@@ -1,4 +1,4 @@
-<h1 align="center">OmniRoute for GitHub Copilot Chat</h1>
+<h1 align="center">OmniRoute by Cheaper Inference for GitHub Copilot Chat</h1>
 
 <p align="center"><strong>Created by <a href="https://github.com/diegosouzapw">Diego Souza</a></strong></p>
 
@@ -17,14 +17,14 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/diegosouzapw/OmniRoute">🌐 OmniRoute on GitHub</a> •
-  <a href="https://github.com/diegosouzapw/OmniCopilot">🔌 Extension source</a> •
-  <a href="https://github.com/diegosouzapw/OmniRoute/issues">🐛 Issues</a>
+  <a href="https://github.com/cheaper-inference/OmniRoute">🌐 OmniRoute on GitHub</a> •
+  <a href="https://github.com/cheaper-inference/OmniCopilot">🔌 Extension source</a> •
+  <a href="https://github.com/cheaper-inference/OmniRoute/issues">🐛 Issues</a>
 </p>
 
 ---
 
-**Don't replace Copilot — power it up.** No new sidebar to learn, no new chat UI. This extension drops every model from your [OmniRoute](https://github.com/diegosouzapw/OmniRoute) server — Kimi, Claude, GPT, Gemini, GLM, DeepSeek, Qwen, Llama and hundreds more across **340+ providers, 90+ of them with free tiers that stay free** — straight into the model picker of the Copilot Chat you already use. Including **VS Code Insiders**.
+**Don't replace Copilot — power it up.** No new sidebar to learn, no new chat UI. This extension drops every model from your [OmniRoute](https://github.com/cheaper-inference/OmniRoute) server — Kimi, Claude, GPT, Gemini, GLM, DeepSeek, Qwen, Llama and hundreds more across **340+ providers, 90+ of them with free tiers that stay free** — straight into the model picker of the Copilot Chat you already use. Including **VS Code Insiders**.
 
 > 🆓 **No Copilot subscription required.** Since VS Code 1.122, provider models work without a GitHub sign-in and without any Copilot plan. VS Code + OmniRoute + this extension = a fully working AI chat with agent mode, for free.
 
@@ -48,7 +48,7 @@ npm install -g omniroute
 omniroute        # dashboard at http://localhost:20128
 ```
 
-Add your providers/keys in the dashboard — or use the built-in free ones. Full guide: [github.com/diegosouzapw/OmniRoute](https://github.com/diegosouzapw/OmniRoute).
+Add your providers/keys in the dashboard — or use the built-in free ones. Full guide: [github.com/cheaper-inference/OmniRoute](https://github.com/cheaper-inference/OmniRoute).
 
 Already running OmniRoute somewhere else (home server, VPS, tunnel)? Point the extension at it — see below.
 
@@ -57,7 +57,7 @@ Already running OmniRoute somewhere else (home server, VPS, tunnel)? Point the e
 Search for **"OmniRoute"** in the VS Code Extensions view — it resolves from the
 [Marketplace](https://marketplace.visualstudio.com/items?itemName=diegosouzapw.omnicopilot) on VS Code
 and from [Open VSX](https://open-vsx.org/extension/diegosouzapw/omnicopilot) on forks like Cursor,
-Windsurf and VSCodium. Or grab the `.vsix` from the [releases](https://github.com/diegosouzapw/OmniCopilot/releases).
+Windsurf and VSCodium. Or grab the `.vsix` from the [releases](https://github.com/cheaper-inference/OmniCopilot/releases).
 
 ### 3. Pick a model
 
@@ -160,13 +160,13 @@ Requires OmniRoute with the usage JSON endpoint (v3.8.50+). See
 Set `omnicopilot.dashboardOpen` to `editor` to open the OmniRoute dashboard in a VS Code tab
 instead of your browser. This needs the server to allow embedding, which is opt-in via
 **`DASHBOARD_ALLOW_EMBED=vscode`** (landed in
-[OmniRoute #10273](https://github.com/diegosouzapw/OmniRoute/issues/10273)).
+[OmniRoute #10273](https://github.com/cheaper-inference/OmniRoute/issues/10273)).
 
 ⚠️ That flag is read at **build time** — Next.js bakes the response headers into the route
 manifest — so exporting it in front of an already-installed server does nothing. It works on a
 build from source (`DASHBOARD_ALLOW_EMBED=vscode npm run build`), not on the prebuilt
 `npm install -g omniroute` package or the official Docker image. Full matrix in the
-[OmniRoute guide](https://github.com/diegosouzapw/OmniRoute/blob/main/docs/guides/VSCODE-COPILOT.md#dashboard-inside-a-vs-code-tab).
+[OmniRoute guide](https://github.com/cheaper-inference/OmniRoute/blob/main/docs/guides/VSCODE-COPILOT.md#dashboard-inside-a-vs-code-tab).
 
 Without an embed-enabled build the page refuses to frame; the extension detects that from the
 response headers and falls back to the external browser, so nothing breaks either way.
@@ -185,8 +185,10 @@ mode, the non-chat filter and the free/keyless providers, with measured numbers.
 
 ## Free & open source
 
-OmniRoute is MIT-licensed and free forever — ⭐ [star it on GitHub](https://github.com/diegosouzapw/OmniRoute) and join the project. This extension is MIT too; issues and PRs welcome at [diegosouzapw/OmniCopilot](https://github.com/diegosouzapw/OmniCopilot). Maintainers publishing a new version: see [`docs/PUBLISHING.md`](docs/PUBLISHING.md) (Marketplace + Open VSX).
+OmniRoute is MIT-licensed and free forever — ⭐ [star it on GitHub](https://github.com/cheaper-inference/OmniRoute) and join the project. This extension is MIT too; issues and PRs welcome at [cheaper-inference/OmniCopilot](https://github.com/cheaper-inference/OmniCopilot). Maintainers publishing a new version: see [`docs/PUBLISHING.md`](docs/PUBLISHING.md) (Marketplace + Open VSX).
 
 ---
+
+<p align="center">© 2026 OmniRoute · A Cheaper Inference product · MIT License · Created by <a href="https://github.com/diegosouzapw">Diego Souza</a></p>
 
 *OmniRoute is an independent open-source project, not affiliated with GitHub or Microsoft. GitHub Copilot is a trademark of GitHub, Inc.*
