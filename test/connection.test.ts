@@ -11,6 +11,7 @@ import {
   rebindApiKey,
   resolveConnection,
   storeApiKey,
+  warnIfKeyWithheld,
   isLoopbackOrigin,
   originOf,
   showUpgradeNoticeOnce,
@@ -380,5 +381,86 @@ describe("key binding in SecretStorage", () => {
     expect(warn.mock.calls[0][0]).toBe(
       `The API key for ${lan} travels over plain HTTP. Anyone on the network path can read it. Prefer HTTPS or a tunnel for a server outside this machine.`
     );
+  });
+});
+
+describe("warnIfKeyWithheld", () => {
+  const A = "https://a.example";
+  const B = "https://b.example";
+  afterEach(() => vi.restoreAllMocks());
+
+  async function keySavedForA() {
+    setMockConfig({ baseUrl: A });
+    const context = fakeContext();
+    await storeApiKey(context, "sk-1");
+    return context;
+  }
+
+  it("warns once per origin when the URL moved away from the key", async () => {
+    const context = await keySavedForA();
+    const warn = vi.spyOn(vscode.window, "showWarningMessage");
+    const warned = new Set<string>();
+    setMockConfig({ baseUrl: `${B}/v1` });
+
+    await warnIfKeyWithheld(context, warned, async () => undefined);
+    await warnIfKeyWithheld(context, warned, async () => undefined);
+
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn.mock.calls[0]).toEqual([
+      `The OmniRoute server URL is now ${B}. The stored API key was saved for ${A} and is not being sent to the new server.`,
+      "Use the key here",
+      "Open panel",
+    ]);
+  });
+
+  it("says nothing while the key is sent, or when none is stored", async () => {
+    const warn = vi.spyOn(vscode.window, "showWarningMessage");
+    const context = await keySavedForA();
+    await warnIfKeyWithheld(context, new Set(), async () => undefined);
+    setMockConfig({ baseUrl: B });
+    await warnIfKeyWithheld(fakeContext(), new Set(), async () => undefined);
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it("approves the new server and refreshes when the user picks Use the key here", async () => {
+    const context = await keySavedForA();
+    vi.spyOn(vscode.window, "showWarningMessage").mockResolvedValue("Use the key here" as never);
+    const refreshed = vi.fn(async () => undefined);
+    setMockConfig({ baseUrl: B });
+
+    await warnIfKeyWithheld(context, new Set(), refreshed);
+
+    expect(refreshed).toHaveBeenCalledTimes(1);
+    expect((await resolveConnection(context)).apiKey).toBe("sk-1");
+  });
+
+  it("opens the panel without approving anything on Open panel", async () => {
+    const context = await keySavedForA();
+    vi.spyOn(vscode.window, "showWarningMessage").mockResolvedValue("Open panel" as never);
+    const run = vi.spyOn(vscode.commands, "executeCommand");
+    const refreshed = vi.fn(async () => undefined);
+    setMockConfig({ baseUrl: B });
+
+    await warnIfKeyWithheld(context, new Set(), refreshed);
+
+    expect(run).toHaveBeenCalledWith("omnicopilot.manage");
+    expect(refreshed).not.toHaveBeenCalled();
+    expect((await resolveConnection(context)).keyWithheld).toBe(true);
+  });
+});
+
+describe("approving the URL being saved", () => {
+  it("binds a rebind or a new key to an explicit URL instead of the configured one", async () => {
+    setMockConfig({ baseUrl: "https://a.example" });
+    const context = fakeContext();
+    await storeApiKey(context, "sk-1", "https://b.example/v1");
+    expect(JSON.parse(context.secretMap.get(SECRET_API_KEY_ORIGINS) ?? "")).toEqual([
+      "https://b.example",
+    ]);
+    await rebindApiKey(context, "c.example:8080");
+    expect(JSON.parse(context.secretMap.get(SECRET_API_KEY_ORIGINS) ?? "")).toEqual([
+      "https://b.example",
+      "http://c.example:8080",
+    ]);
   });
 });

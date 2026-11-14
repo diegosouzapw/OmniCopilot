@@ -41,6 +41,28 @@ export function isAllowedPanelCommand(command: unknown): command is string {
   return typeof command === "string" && ALLOWED_PANEL_COMMANDS.has(command);
 }
 
+/**
+ * What the URL field should hold when a new status arrives. The field follows the
+ * host only while it still shows what the host reported last (or, before the
+ * first status, while it is empty); a value the user typed is left alone, so a
+ * later Save cannot write an old URL back over a change made in Settings.
+ *
+ * The webview script runs this same function: its source is embedded there, so
+ * it must not reference anything outside itself.
+ */
+export function nextUrlFieldValue(args: {
+  current: string;
+  lastReported: string | undefined;
+  reported: string;
+}): string {
+  return args.current === (args.lastReported ?? "") ? args.reported : args.current;
+}
+
+/** Source of `nextUrlFieldValue` as the webview script embeds it (an expression). */
+export function embeddedNextUrlFieldValue(): string {
+  return nextUrlFieldValue.toString();
+}
+
 /** Sidebar webview: connection status, server URL and API key form,
  * plus the extension's quick actions — the visual home of the extension. */
 export class OmniPanelProvider implements vscode.WebviewViewProvider {
@@ -96,20 +118,23 @@ export class OmniPanelProvider implements vscode.WebviewViewProvider {
       case "save": {
         // Store the server root; `/v1` is appended per request by the client.
         const url = serverRootUrl(String(msg.url ?? ""));
-        await vscode.workspace
-          .getConfiguration("omnicopilot")
-          .update("baseUrl", url, vscode.ConfigurationTarget.Global);
 
         // Empty key field = keep the stored key; the explicit Clear button removes it.
         // Saving is the user confirming this URL in our own UI, so it is also
-        // the one place a stored key is rebound to a changed origin.
+        // the one place a stored key is approved for a changed origin. Approve
+        // first, then write the setting: the configuration change then finds the
+        // key approved instead of reporting it withheld.
         const key = String(msg.apiKey ?? "").trim();
         if (key) {
-          await storeApiKey(this.context, key);
+          await storeApiKey(this.context, key, url);
           this.log.info("API key stored via panel");
         } else {
-          await rebindApiKey(this.context);
+          await rebindApiKey(this.context, url);
         }
+
+        await vscode.workspace
+          .getConfiguration("omnicopilot")
+          .update("baseUrl", url, vscode.ConfigurationTarget.Global);
 
         await this.onSettingsSaved();
         await this.refreshStatus();
@@ -325,8 +350,14 @@ export class OmniPanelProvider implements vscode.WebviewViewProvider {
     const S = ${JSON.stringify(S)};
     const vscodeApi = acquireVsCodeApi();
     const $ = (id) => document.getElementById(id);
+    const nextUrlFieldValue = ${embeddedNextUrlFieldValue()};
+    // The URL the host reported last; the field follows the host while it holds it.
+    let lastReportedUrl;
 
     $("save").addEventListener("click", () => {
+      // What is saved becomes the host's value: let the next status replace it
+      // with the normalised URL the host stored.
+      lastReportedUrl = $("url").value;
       vscodeApi.postMessage({ type: "save", url: $("url").value, apiKey: $("key").value });
       $("key").value = "";
       $("statusText").textContent = S.testing;
@@ -354,7 +385,12 @@ export class OmniPanelProvider implements vscode.WebviewViewProvider {
       const msg = event.data;
       if (msg.type !== "status") return;
       $("dot").className = "dot" + (msg.online ? " on" : "");
-      if (!$("url").value) $("url").value = msg.url;
+      $("url").value = nextUrlFieldValue({
+        current: $("url").value,
+        lastReported: lastReportedUrl,
+        reported: msg.url,
+      });
+      lastReportedUrl = msg.url;
       $("urlText").textContent = msg.url;
       $("keyHint").textContent = msg.hasKey ? S.keyStored : S.keyNone;
       const st = $("statusText");
