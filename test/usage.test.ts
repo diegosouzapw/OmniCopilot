@@ -5,6 +5,7 @@ import {
   formatUsd,
   percentLeft,
   quotaRemainingPercent,
+  resetLabel,
   toUsageView,
 } from "../src/usage";
 import type { UsageResponse } from "../src/usage";
@@ -90,6 +91,54 @@ describe("toUsageView", () => {
       expect(view.providers[0]?.quotas?.secondary?.resetIn).toBeNull();
     }
   });
+
+  it("precomputes percentages, the unlimited flag and reset labels for the panel", () => {
+    const now = Date.parse("2026-08-19T12:00:00Z");
+    const view = toUsageView(
+      {
+        allowed: true,
+        personal: {
+          enabled: true,
+          dailyLimitUsd: 10,
+          weeklyLimitUsd: null,
+          dailySpentUsd: 2.5,
+          weeklySpentUsd: 8,
+          dailyResetAtIso: "2026-08-19T11:00:00Z", // already past
+          weeklyResetAtIso: null,
+          dailyExceeded: false,
+          weeklyExceeded: false,
+        },
+        provider: null,
+        providers: [
+          {
+            connectionId: "c1",
+            provider: "mixed",
+            quotas: {
+              session: { usedPercentage: 30, resetAt: "2026-08-19T12:30:00Z" },
+              balance: { remaining: 250, currency: "USD" },
+              plan: { unlimited: true },
+              count: { used: 1500 },
+            },
+          },
+        ],
+      },
+      now
+    );
+
+    expect(view.kind).toBe("ready");
+    if (view.kind !== "ready") return;
+    expect(view.personal).toMatchObject({
+      dailyPercentLeft: 75,
+      weeklyPercentLeft: null,
+      dailyResetIn: null,
+      weeklyResetIn: null,
+    });
+    const quotas = view.providers[0]?.quotas ?? {};
+    expect(quotas.session).toMatchObject({ percentLeft: 70, unlimited: false, resetIn: "30m" });
+    expect(quotas.balance).toMatchObject({ percentLeft: null, unlimited: false, resetIn: null });
+    expect(quotas.plan).toMatchObject({ percentLeft: null, unlimited: true, resetIn: null });
+    expect(quotas.count?.percentLeft).toBeNull();
+  });
 });
 
 describe("formatters", () => {
@@ -118,17 +167,59 @@ describe("formatters", () => {
 });
 
 describe("quotaRemainingPercent", () => {
-  it("prefers remainingPercentage, then used/total, then remaining", () => {
-    expect(quotaRemainingPercent({ remainingPercentage: 42, used: 1, total: 10, remaining: 7 })).toBe(42);
+  it("resolves the remaining percentage in the server's order", () => {
+    expect(quotaRemainingPercent({ usedPercentage: 30, used: 1, total: 2 })).toBe(70);
     expect(quotaRemainingPercent({ used: 25, total: 100 })).toBe(75);
+    expect(quotaRemainingPercent({ used: 40 })).toBe(60);
+    expect(quotaRemainingPercent({ remainingPercentage: 42 })).toBe(42);
     expect(quotaRemainingPercent({ remaining: 60 })).toBe(60);
   });
 
-  it("clamps to 0-100 and returns null when unknowable", () => {
-    expect(quotaRemainingPercent({ used: 150, total: 100 })).toBe(0);
-    expect(quotaRemainingPercent({ remainingPercentage: 130 })).toBe(100);
-    expect(quotaRemainingPercent({ used: 5, total: 0 })).toBeNull();
+  it("lets used/total and a small `used` win over remainingPercentage and remaining", () => {
+    expect(quotaRemainingPercent({ remainingPercentage: 42, used: 1, total: 10, remaining: 7 })).toBe(90);
+    expect(quotaRemainingPercent({ used: 5, total: 0 })).toBe(95); // total unusable, used read as a percentage
+    expect(quotaRemainingPercent({ remainingPercentage: 42, remaining: 7 })).toBe(42);
+  });
+
+  it("does not read a balance or an absolute count as a percentage", () => {
+    expect(quotaRemainingPercent({ remaining: 250 })).toBeNull();
+    expect(quotaRemainingPercent({ used: 1500 })).toBeNull();
+    expect(quotaRemainingPercent({ used: -3 })).toBeNull();
+    expect(quotaRemainingPercent({ remaining: -1 })).toBeNull();
     expect(quotaRemainingPercent({})).toBeNull();
+  });
+
+  it("clamps to 0-100 and rounds", () => {
+    expect(quotaRemainingPercent({ used: 150, total: 100 })).toBe(0);
+    expect(quotaRemainingPercent({ usedPercentage: 130 })).toBe(0);
+    expect(quotaRemainingPercent({ usedPercentage: -5 })).toBe(100);
+    expect(quotaRemainingPercent({ remainingPercentage: 130 })).toBe(100);
+    expect(quotaRemainingPercent({ used: 1, total: 3 })).toBe(67);
+  });
+
+  it("accepts numeric strings the way the server does and ignores other values", () => {
+    const loose = (q: object) => q as Parameters<typeof quotaRemainingPercent>[0];
+    expect(quotaRemainingPercent(loose({ usedPercentage: "20" }))).toBe(80);
+    expect(quotaRemainingPercent(loose({ used: "1", total: "4" }))).toBe(75);
+    expect(quotaRemainingPercent(loose({ usedPercentage: "abc", remaining: 30 }))).toBe(30);
+    expect(quotaRemainingPercent(loose({ usedPercentage: "  " }))).toBeNull();
+  });
+});
+
+describe("resetLabel", () => {
+  const now = Date.parse("2026-08-19T12:00:00Z");
+
+  it("returns the formatted countdown for a future reset", () => {
+    expect(resetLabel("2026-08-21T16:00:00Z", now)).toBe("2d 4h");
+    expect(resetLabel("2026-08-19T12:30:00Z", now)).toBe("30m");
+  });
+
+  it("drops the label when the time is unknown or already past", () => {
+    expect(resetLabel(null, now)).toBeNull();
+    expect(resetLabel(undefined, now)).toBeNull();
+    expect(resetLabel("", now)).toBeNull();
+    expect(resetLabel("not-a-date", now)).toBeNull();
+    expect(resetLabel("2026-08-19T11:00:00Z", now)).toBeNull();
   });
 });
 
