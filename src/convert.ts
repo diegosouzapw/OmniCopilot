@@ -135,6 +135,9 @@ export function isEmptyContent(content: string | ChatContentPart[] | null): bool
   return content.every((p) => p.type === "text" && p.text.trim().length === 0);
 }
 
+/** Tokens charged for each image, whatever its size (flat estimate). */
+const TOKENS_PER_IMAGE = 4000;
+
 function describeSize(bytes: number): string {
   return bytes < 1024 ? `${bytes} B` : `${Math.round(bytes / 1024)} KB`;
 }
@@ -235,9 +238,15 @@ export function estimateTokens(text: string | vscode.LanguageModelChatRequestMes
     } else if (part instanceof vscode.LanguageModelToolCallPart) {
       chars += part.name.length + JSON.stringify(part.input ?? {}).length;
     } else if (part instanceof vscode.LanguageModelToolResultPart) {
-      chars += extractToolResultText(part.content).length;
-    } else if (part instanceof vscode.LanguageModelDataPart) {
-      chars += 4000 * 4; // flat estimate per image/binary attachment
+      const { text: rendered, images } = renderToolResult(part.content, { imageInput: true });
+      chars += rendered.length + images.length * TOKENS_PER_IMAGE * 4;
+    } else if (part instanceof vscode.LanguageModelDataPart && typeof part.mimeType === "string") {
+      // Markers cost nothing; images a flat amount; readable text its length;
+      // other binary data is never sent, so it costs nothing either.
+      if (isImageMime(part.mimeType)) chars += TOKENS_PER_IMAGE * 4;
+      else if (!isMarkerMime(part.mimeType) && isReadableMime(part.mimeType)) {
+        chars += new TextDecoder().decode(part.data).length;
+      }
     }
   }
   return Math.ceil(chars / 4);

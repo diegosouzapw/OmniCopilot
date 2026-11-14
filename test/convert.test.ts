@@ -235,6 +235,39 @@ describe("tool-result content", () => {
   });
 });
 
+describe("estimateTokens for data parts", () => {
+  const user = vscode.LanguageModelChatMessageRole.User;
+
+  it("does not charge tokens for internal marker data parts", () => {
+    const marker = new vscode.LanguageModelDataPart(new TextEncoder().encode("ephemeral"), "cache_control");
+    expect(estimateTokens(msg(user, [marker]))).toBe(0);
+  });
+
+  it("still charges a flat 4000 tokens per image", () => {
+    const img = new vscode.LanguageModelDataPart(new Uint8Array([1, 2, 3]), "image/png");
+    expect(estimateTokens(msg(user, [img]))).toBe(4000);
+    expect(estimateTokens(msg(user, [toolResultPart(img)]))).toBe(4000 + Math.ceil("[image: image/png, 3 B; attached after this result]".length / 4));
+  });
+
+  it("charges readable text by length and other binary data nothing", () => {
+    const text = new vscode.LanguageModelDataPart(new TextEncoder().encode("abcdefgh"), "text/plain");
+    const bin = new vscode.LanguageModelDataPart(new Uint8Array(5000), "application/pdf");
+    expect(estimateTokens(msg(user, [text]))).toBe(2);
+    expect(estimateTokens(msg(user, [bin]))).toBe(0);
+  });
+
+  it("counts the rendered text of a tool result, not the serialized bytes", () => {
+    const png = new vscode.LanguageModelDataPart(new Uint8Array(100_000).fill(137), "image/png");
+    const n = estimateTokens(msg(user, [toolResultPart(new vscode.LanguageModelTextPart("ok"), png)]));
+    expect(n).toBeLessThan(4100);
+    expect(n).toBeGreaterThanOrEqual(4000);
+  });
+});
+
+function toolResultPart(...content: unknown[]): vscode.LanguageModelToolResultPart {
+  return new vscode.LanguageModelToolResultPart("call_1", content);
+}
+
 describe("URL normalization", () => {
   it("appends /v1 and strips trailing slashes", () => {
     expect(normalizeBaseUrl("http://localhost:20128")).toBe("http://localhost:20128/v1");
