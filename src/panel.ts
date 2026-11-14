@@ -210,6 +210,9 @@ export class OmniPanelProvider implements vscode.WebviewViewProvider {
       usageBalanceLeft: t("{0} left"),
       usageDisabled: t("Usage is not enabled for this key. An admin can turn on the usage command for it in OmniRoute."),
       usageEmpty: t("Usage is reported, but nothing is cached yet — it fills in after the first requests."),
+      footProduct: t("A Cheaper Inference product"),
+      footLicense: t("MIT License"),
+      footCreated: t("Created by {0}"),
     };
     return /* html */ `<!DOCTYPE html>
 <html lang="en">
@@ -217,30 +220,75 @@ export class OmniPanelProvider implements vscode.WebviewViewProvider {
 <meta charset="UTF-8">
 <meta http-equiv="Content-Security-Policy" content="${csp}">
 <style>
+  /* OmniRoute by Cheaper Inference — brand colours. Light is the default; the
+     VS Code theme class on <body> switches them. High contrast defers to the
+     theme's own colours. */
+  body {
+    --omni-accent: #e5ac82; --omni-accent-hover: #edb78b; --omni-accent-fg: #241b15;
+    --omni-link: #8f4d26; --omni-focus: #99562f;
+    --omni-ok: #3c735b; --omni-warn: #8a591c; --omni-danger: #ae4340;
+    --omni-track: rgba(32,33,28,.18);
+  }
+  body.vscode-dark {
+    --omni-link: #e5ac82; --omni-focus: #e5ac82;
+    --omni-ok: #9ecbbb; --omni-warn: #e5c28c; --omni-danger: #edaaa1;
+    --omni-track: rgba(242,240,232,.18);
+  }
+  body.vscode-high-contrast, body.vscode-high-contrast-light {
+    --omni-accent: var(--vscode-button-background); --omni-accent-hover: var(--vscode-button-hoverBackground);
+    --omni-accent-fg: var(--vscode-button-foreground);
+    --omni-link: var(--vscode-textLink-foreground); --omni-focus: var(--vscode-focusBorder);
+    --omni-ok: var(--vscode-charts-green); --omni-warn: var(--vscode-charts-orange); --omni-danger: var(--vscode-charts-red);
+    --omni-track: var(--vscode-widget-border);
+  }
   body { font-family: var(--vscode-font-family); color: var(--vscode-foreground); padding: 10px 14px; }
+  .brand { display: flex; align-items: center; gap: 8px; margin: 2px 0 12px; }
+  .brand svg { flex: none; width: 20px; height: 20px; }
+  .brand-text { display: flex; flex-direction: column; line-height: 1.25; }
+  .brand-name { font-size: 13.5px; font-weight: 600; }
+  .brand-by { font-size: 10px; color: var(--vscode-descriptionForeground); }
   h3 { margin: 4px 0 10px; font-size: 13px; display: flex; align-items: center; gap: 7px; }
-  .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--vscode-charts-red); display: inline-block; }
-  .dot.on { background: var(--vscode-charts-green); }
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--omni-danger); display: inline-block; }
+  .dot.on { background: var(--omni-ok); }
   .muted { color: var(--vscode-descriptionForeground); font-size: 11.5px; margin: 2px 0 12px; word-break: break-all; }
   label { display: block; font-size: 11px; margin: 10px 0 3px; color: var(--vscode-descriptionForeground); text-transform: uppercase; letter-spacing: .04em; }
   input { width: 100%; box-sizing: border-box; padding: 5px 7px; border-radius: 3px;
     background: var(--vscode-input-background); color: var(--vscode-input-foreground);
     border: 1px solid var(--vscode-input-border, transparent); outline: none; }
-  input:focus { border-color: var(--vscode-focusBorder); }
+  input:focus { border-color: var(--omni-focus); }
   .row { display: flex; gap: 6px; margin-top: 12px; }
   button { flex: 1; padding: 5px 8px; border: none; border-radius: 3px; cursor: pointer;
-    background: var(--vscode-button-background); color: var(--vscode-button-foreground); font-size: 12px; }
-  button:hover { background: var(--vscode-button-hoverBackground); }
+    background: var(--omni-accent); color: var(--omni-accent-fg); font-size: 12px; }
+  button:hover { background: var(--omni-accent-hover); }
   button.secondary { background: var(--vscode-button-secondaryBackground); color: var(--vscode-button-secondaryForeground); }
+  button.secondary:hover { background: var(--vscode-button-secondaryHoverBackground); }
+  button:focus-visible, a:focus-visible { outline: 1px solid var(--omni-focus); outline-offset: 2px; }
   .links { margin-top: 16px; border-top: 1px solid var(--vscode-widget-border, rgba(128,128,128,.25)); padding-top: 8px; }
-  .link { display: block; padding: 5px 2px; cursor: pointer; font-size: 12.5px; color: var(--vscode-textLink-foreground); }
-  .link:hover { text-decoration: underline; }
+  button.link, button.link:hover { display: block; flex: none; width: 100%; text-align: left;
+    background: transparent; border: none; border-radius: 3px; padding: 5px 2px;
+    font-family: inherit; font-size: 12.5px; color: var(--omni-link); }
+  button.link:hover { text-decoration: underline; }
   .badge { font-weight: 600; }
-  .warn { color: var(--vscode-charts-orange); font-size: 11.5px; margin-top: 8px; word-break: break-word; white-space: pre-line; }
+  .warn { color: var(--omni-warn); font-size: 11.5px; margin-top: 8px; word-break: break-word; white-space: pre-line; }
   .keyhint { font-size: 11px; color: var(--vscode-descriptionForeground); margin-top: 3px; }
+  .usage-row { margin-bottom: 8px; }
+  .bar { height: 4px; margin-top: 4px; border-radius: 2px; background: var(--omni-track); overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 2px; background: var(--omni-accent); }
+  .foot { margin-top: 18px; font-size: 10.5px; line-height: 1.5; color: var(--vscode-descriptionForeground); }
+  .foot a { color: var(--omni-link); text-decoration: underline; }
 </style>
 </head>
 <body>
+  <header class="brand">
+    <svg viewBox="0 0 48 48" width="20" height="20" aria-hidden="true" focusable="false">
+      <rect x=".75" y=".75" width="46.5" height="46.5" rx="10.5" fill="#e5ac82" stroke="#040d10" stroke-width="1.5"/>
+      <g transform="translate(10 10) scale(1.166667)" fill="none" stroke="#040d10" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="m10.586 5.414-5.172 5.172"/><path d="m18.586 13.414-5.172 5.172"/><path d="M6 12h12"/>
+        <circle cx="12" cy="20" r="2"/><circle cx="12" cy="4" r="2"/><circle cx="20" cy="12" r="2"/><circle cx="4" cy="12" r="2"/>
+      </g>
+    </svg>
+    <div class="brand-text"><span class="brand-name">OmniRoute</span><span class="brand-by">by Cheaper Inference</span></div>
+  </header>
   <h3><span id="dot" class="dot"></span><span id="statusText">${S.checking}</span></h3>
   <div class="muted" id="urlText"></div>
 
@@ -263,13 +311,15 @@ export class OmniPanelProvider implements vscode.WebviewViewProvider {
   </div>
 
   <div class="links">
-    <span class="link" data-cmd="omnicopilot.refreshModels">↻ ${S.linkRefresh}</span>
-    <span class="link" data-cmd="omnicopilot.openDashboard">▤ ${S.linkDashboard}</span>
-    <span class="link" data-cmd="omnicopilot.configureCliTool">⌨ ${S.linkCli}</span>
-    <span class="link" data-cmd="omnicopilot.installOmniRoute">⇩ ${S.linkInstall}</span>
-    <span class="link" data-cmd="omnicopilot.openGitHub">★ ${S.linkGitHub}</span>
-    <span class="link" data-cmd="omnicopilot.openSettings">⚙ ${S.linkSettings}</span>
+    <button type="button" class="link" data-cmd="omnicopilot.refreshModels">↻ ${S.linkRefresh}</button>
+    <button type="button" class="link" data-cmd="omnicopilot.openDashboard">▤ ${S.linkDashboard}</button>
+    <button type="button" class="link" data-cmd="omnicopilot.configureCliTool">⌨ ${S.linkCli}</button>
+    <button type="button" class="link" data-cmd="omnicopilot.installOmniRoute">⇩ ${S.linkInstall}</button>
+    <button type="button" class="link" data-cmd="omnicopilot.openGitHub">★ ${S.linkGitHub}</button>
+    <button type="button" class="link" data-cmd="omnicopilot.openSettings">⚙ ${S.linkSettings}</button>
   </div>
+
+  <footer class="foot" id="foot"></footer>
 
   <script nonce="${nonce}">
     const S = ${JSON.stringify(S)};
@@ -282,9 +332,23 @@ export class OmniPanelProvider implements vscode.WebviewViewProvider {
       $("statusText").textContent = S.testing;
     });
     $("clearKey").addEventListener("click", () => vscodeApi.postMessage({ type: "clearKey" }));
-    document.querySelectorAll(".link").forEach((el) =>
+    document.querySelectorAll("button.link").forEach((el) =>
       el.addEventListener("click", () => vscodeApi.postMessage({ type: "action", command: el.dataset.cmd }))
     );
+
+    // Footer credit. The localized "Created by {0}" is split around {0} so the
+    // name becomes a real link wherever the language puts it.
+    (() => {
+      const foot = $("foot");
+      foot.append("© 2026 OmniRoute · " + S.footProduct + " · " + S.footLicense + " · ");
+      const a = document.createElement("a");
+      a.href = "https://github.com/diegosouzapw";
+      a.rel = "noopener noreferrer";
+      a.textContent = "Diego Souza";
+      const parts = S.footCreated.split("{0}");
+      if (parts.length > 1) foot.append(parts[0], a, parts.slice(1).join("{0}"));
+      else foot.append(S.footCreated + " ", a);
+    })();
 
     window.addEventListener("message", (event) => {
       const msg = event.data;
@@ -328,11 +392,24 @@ export class OmniPanelProvider implements vscode.WebviewViewProvider {
         if (u.kind === "disabled") {
           usageBody.textContent = S.usageDisabled;
         } else {
-          const line = (label, text) => {
+          // percent (0-100) is optional: only rows with a known percentage get a bar.
+          // The bar is decorative — the percentage is already in the row's text.
+          const line = (label, text, percent) => {
             const row = document.createElement("div");
+            row.className = "usage-row";
             const b = document.createElement("strong");
             b.textContent = label + ": ";
             row.append(b, text);
+            if (typeof percent === "number" && Number.isFinite(percent)) {
+              const bar = document.createElement("div");
+              bar.className = "bar";
+              bar.setAttribute("aria-hidden", "true");
+              const fill = document.createElement("div");
+              fill.className = "bar-fill";
+              fill.style.width = Math.min(100, Math.max(0, percent)) + "%";
+              bar.append(fill);
+              row.append(bar);
+            }
             usageBody.append(row);
           };
           const reset = (value) => value ? " · " + S.usageResetsIn.replace("{0}", value) : "";
@@ -342,9 +419,9 @@ export class OmniPanelProvider implements vscode.WebviewViewProvider {
             const left = (percent) =>
               typeof percent === "number" ? " (" + S.usagePercentLeft.replace("{0}", String(percent)) + ")" : "";
             if (pers.dailyLimitUsd !== null)
-              line(S.usageDaily, usd(pers.dailySpentUsd) + " / " + usd(pers.dailyLimitUsd) + left(pers.dailyPercentLeft) + reset(pers.dailyResetIn));
+              line(S.usageDaily, usd(pers.dailySpentUsd) + " / " + usd(pers.dailyLimitUsd) + left(pers.dailyPercentLeft) + reset(pers.dailyResetIn), pers.dailyPercentLeft);
             if (pers.weeklyLimitUsd !== null)
-              line(S.usageWeekly, usd(pers.weeklySpentUsd) + " / " + usd(pers.weeklyLimitUsd) + left(pers.weeklyPercentLeft) + reset(pers.weeklyResetIn));
+              line(S.usageWeekly, usd(pers.weeklySpentUsd) + " / " + usd(pers.weeklyLimitUsd) + left(pers.weeklyPercentLeft) + reset(pers.weeklyResetIn), pers.weeklyPercentLeft);
           }
           const providers = Array.isArray(u.providers) ? u.providers : [];
           if (providers.length === 0 && !pers) {
@@ -362,7 +439,7 @@ export class OmniPanelProvider implements vscode.WebviewViewProvider {
                       ? S.usageBalanceLeft.replace("{0}", () => q.balance)
                       : "—";
                 const label = snap.provider + (windows.length > 1 ? " · " + name : "");
-                line(label, rem + reset(q.resetIn));
+                line(label, rem + reset(q.resetIn), q.unlimited ? null : q.percentLeft);
               }
             }
           }
