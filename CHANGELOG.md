@@ -1,5 +1,95 @@
 # Changelog
 
+## 1.4.0
+
+The most reported problems are fixed, the server URL and the API key got a security pass, and the
+extension now carries the Cheaper Inference brand: **OmniRoute by Cheaper Inference for GitHub
+Copilot Chat**.
+
+### Fixed
+
+- **The Context Window widget shows real token counts.** It stayed at 0 for every OmniRoute model
+  because the extension never told VS Code how many tokens a response used. It now asks the server
+  for the usage of each response and passes it on. Needs VS Code 1.120 or newer. Contributed by
+  @SalatielBM22 in [#29](https://github.com/cheaper-inference/OmniCopilot/pull/29), fixing
+  [#28](https://github.com/cheaper-inference/OmniCopilot/issues/28) and
+  [#21](https://github.com/cheaper-inference/OmniCopilot/issues/21) (reported by @dedok3000).
+- **Tool names longer than 64 characters no longer fail the request.** MCP tool names often pass
+  the limit of Chat Completions, and OpenAI-format providers such as Azure reject the whole request.
+  A longer name now goes out under a 64-character alias (its first 55 characters and a hash), in
+  `tools[]` and in the tool calls of the history, and comes back to VS Code under its real name.
+  Reported by @Narquadah in [#27](https://github.com/cheaper-inference/OmniCopilot/issues/27).
+- **Rate limits and busy providers are retried for you.** A 408, 429 or 5xx, or a network failure,
+  is retried up to twice, waiting the time the server asks for (`Retry-After`, or the
+  "reset after 24s" hint in the error). No single wait is longer than 30 seconds and the whole
+  thing gives up after a minute. It only retries while nothing has reached the chat, so an answer
+  is never duplicated. Reported by @xbotuk in
+  [#23](https://github.com/cheaper-inference/OmniCopilot/issues/23); the retry policy takes up what
+  @atmediallc proposed in [#3](https://github.com/cheaper-inference/OmniCopilot/pull/3).
+- **A tool that returns an image no longer floods the prompt.** The image bytes were serialised as
+  text, about 300,000 tokens for a 100 KB screenshot. Images now go to vision models as images and
+  become a short placeholder for the others. Parallel tool calls keep their results together, which
+  strict providers require.
+- **The token estimate counts what is actually sent.** Every data part used to cost a flat 4,000
+  tokens, including internal markers and binary payloads that never leave the editor, so the context
+  looked full long before it was.
+- **Thinking effort can be chosen next to the model.** Models with extended thinking get a
+  *Thinking effort* menu in the model picker (VS Code 1.120 or newer) with the tiers the model
+  offers. The choice now reaches the request; before, only `omnicopilot.defaultReasoningEffort` did.
+  `max` is a tier of its own instead of being folded into `xhigh`.
+- **Model limits and names come from the catalog.** The extension read `max_completion_tokens` and
+  `display_name`, which OmniRoute rarely sends, so every model got the default output budget and its
+  raw id as a name. It now reads `max_output_tokens`, `max_input_tokens` and `name`.
+- **"Offline" says why.** The panel shows the cause: nothing listening, no answer in time, a host
+  name that does not resolve, a proxy answering in the server's place, a rejected TLS certificate,
+  or something that is not OmniRoute at that address. It also says when the window is remote, where
+  `localhost` is the remote machine, and points at `http.noProxy` when a proxy looks like the cause.
+  Reported by @ned14 in [#18](https://github.com/cheaper-inference/OmniCopilot/issues/18) and in
+  [#15](https://github.com/cheaper-inference/OmniCopilot/issues/15).
+- **The usage section shows reset times and real balances.** Each limit and provider quota shows
+  when it resets (contributed by @pacocartones in
+  [#20](https://github.com/cheaper-inference/OmniCopilot/pull/20)). Quotas are resolved the way the
+  server resolves them, and prepaid balances (DeepSeek, Kilo, Lyceum and others) show the money
+  left, such as `$0.37 left`, instead of a percentage of nothing.
+- **The model picker refills when the server comes back.** Starting OmniRoute after VS Code no
+  longer leaves the picker empty until a manual refresh.
+- Also fixed: an HTTP error from one model no longer marks the whole server offline. A model listing
+  that never answers gives up after 15 seconds. A tool call that arrives without an id is kept. A
+  malformed catalog entry no longer empties the picker. `omnicopilot.cliPath` accepts a quoted path
+  with spaces. Servers that do not answer `HEAD` are probed with `GET`.
+
+### Security
+
+Reported by @jsalazarsana in [#31](https://github.com/cheaper-inference/OmniCopilot/issues/31).
+
+- **A workspace can no longer redirect the extension.** `omnicopilot.baseUrl` is read from your
+  user settings only (in a remote window, the remote machine's settings count too). A value in a
+  workspace's `.vscode/settings.json` is ignored, and the panel says so when it finds one.
+- **The API key is tied to the server it was saved for.** If the server URL changes, the key is
+  not sent to the new server until you approve it, with Save & Test in the panel or *Use the key
+  here* on the warning. The status bar shows a warning while the key is held back.
+- **Plain HTTP outside your machine gets a warning**, once per server, before the key travels.
+- **`omnicopilot.cliPath` is a machine setting** and is validated and quoted before it reaches a
+  terminal. A server URL that carries shell syntax is refused instead of being typed into one.
+- **The panel only runs this extension's commands**, and its content-security nonce comes from the
+  platform's random source.
+
+### Changed
+
+- **New name, icon and colours.** The listing, the Activity Bar icon and the panel follow the
+  Cheaper Inference brand. The extension id (`diegosouzapw.omnicopilot`) and every setting keep
+  their names, so nothing needs to be reconfigured.
+- **New home.** The repositories moved to
+  [cheaper-inference/OmniCopilot](https://github.com/cheaper-inference/OmniCopilot) and
+  [cheaper-inference/OmniRoute](https://github.com/cheaper-inference/OmniRoute). The old addresses
+  redirect.
+- **Four more tools in *Configure Coding CLI*:** Gemini CLI, Zed, WhyCodes and 5dive.
+- **Translations.** Every new string ships in all 42 languages, and the test suite now fails when
+  a string is missing from one of them.
+- Development dependencies updated
+  ([#30](https://github.com/cheaper-inference/OmniCopilot/pull/30),
+  [#34](https://github.com/cheaper-inference/OmniCopilot/pull/34)).
+
 ## 1.3.0
 
 - **Agents window (experimental, opt-in).** `omnicopilot.exposeToAgentsWindow` registers a
