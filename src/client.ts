@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import { isFramingAllowed } from "./embed";
 import { parseRetryAfter, retryDelayFromMessage } from "./retry";
 import type {
@@ -16,6 +17,9 @@ export interface ClientOptions {
 }
 
 const USER_AGENT = "OmniCopilot-VSCode";
+
+/** The model catalog call gives up on its own after this long. */
+const MODELS_TIMEOUT_MS = 15_000;
 
 export interface RequestErrorInfo {
   /** HTTP status, from the response or from an error reported inside the stream. */
@@ -119,15 +123,46 @@ export class OmniRouteClient {
     // Alias mode is the safe direction: every model keeps an entry, whereas
     // `canonical` drops models whose provider has no distinct alias. Unknown
     // query params are ignored by other OpenAI-compatible servers.
-    const res = await fetch(`${this.baseUrl}/models?prefix=alias`, {
-      headers: headers(this.opts.apiKey, false),
-    });
-    if (!res.ok) {
-      throw new Error(`OmniRoute /models returned HTTP ${res.status}`);
+    const ctrl = new AbortController();
+    let timedOut = false;
+    const timer = setTimeout(() => {
+      timedOut = true;
+      ctrl.abort();
+    }, MODELS_TIMEOUT_MS);
+    const timeoutError = (cause: unknown) =>
+      new OmniRouteRequestError(
+        `OmniRoute /models did not answer within ${MODELS_TIMEOUT_MS / 1000} s`,
+        { network: true },
+        cause
+      );
+
+    try {
+      let res: Response;
+      try {
+        res = await fetch(`${this.baseUrl}/models?prefix=alias`, {
+          headers: headers(this.opts.apiKey, false),
+          signal: ctrl.signal,
+        });
+      } catch (err) {
+        throw timedOut ? timeoutError(err) : networkError(err);
+      }
+      if (!res.ok) {
+        throw new OmniRouteRequestError(`OmniRoute /models returned HTTP ${res.status}`, {
+          status: res.status,
+        });
+      }
+      if (token?.isCancellationRequested) return [];
+      let body: ModelsResponse;
+      try {
+        body = (await res.json()) as ModelsResponse;
+      } catch (err) {
+        if (timedOut) throw timeoutError(err);
+        throw err;
+      }
+      return Array.isArray(body.data) ? body.data : [];
+    } finally {
+      clearTimeout(timer);
     }
-    if (token?.isCancellationRequested) return [];
-    const body = (await res.json()) as ModelsResponse;
-    return Array.isArray(body.data) ? body.data : [];
   }
 
   /** POST /chat/completions with stream:true, yielding normalized events. */
@@ -240,8 +275,11 @@ class ToolCallAssembler {
 
   *flush(): Generator<StreamEvent> {
     for (const [, call] of [...this.pending.entries()].sort(([a], [b]) => a - b)) {
-      if (!call.id || !call.name) continue;
-      yield { kind: "toolCall", id: call.id, name: call.name, args: call.args || "{}" };
+      if (!call.name) continue;
+      // Some servers never send an id; the editor needs one to pair the call
+      // with its result, so make one up rather than dropping the call.
+      const id = call.id || `call_${randomBytes(4).toString("hex")}`;
+      yield { kind: "toolCall", id, name: call.name, args: call.args || "{}" };
     }
     this.pending.clear();
   }
