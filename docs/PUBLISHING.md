@@ -137,7 +137,7 @@ error, that the Publisher Agreement above hasn't been signed yet.
 ## 3. After both stores are live
 
 - **Regenerate and swap the GitHub release asset** so the `.vsix` people download from
-  `github.com/diegosouzapw/OmniCopilot/releases` matches what's on both stores:
+  `github.com/cheaper-inference/OmniCopilot/releases` matches what's on both stores:
 
   ```bash
   npx vsce package -o omnicopilot-<version>.vsix
