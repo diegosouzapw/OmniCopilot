@@ -7,6 +7,8 @@ import {
   resolveConnection,
   showIgnoredWorkspaceUrlNotice,
   createWithheldKeyWatcher,
+  displayUrl,
+  plainNotificationText,
   storeApiKey,
 } from "./connection";
 import { OmniPanelProvider } from "./panel";
@@ -118,14 +120,16 @@ function registerCommands(context: vscode.ExtensionContext, log: vscode.LogOutpu
     if (ok) {
       const client = await makeClient(context);
       void vscode.window.showInformationMessage(
-        vscode.l10n.t("Connected to OmniRoute at {0}.", client.baseUrl)
+        vscode.l10n.t("Connected to OmniRoute at {0}.", displayUrl(client.baseUrl))
       );
     } else {
+      const summary = statusBar?.failureSummary;
       void vscode.window.showWarningMessage(
-        statusBar?.failureSummary ??
-          vscode.l10n.t(
-            "OmniRoute is unreachable. Check that it is running (npx omniroute) and that omnicopilot.baseUrl points at it."
-          )
+        summary !== undefined
+          ? plainNotificationText(summary)
+          : vscode.l10n.t(
+              "OmniRoute is unreachable. Check that it is running (npx omniroute) and that omnicopilot.baseUrl points at it."
+            )
       );
     }
   });

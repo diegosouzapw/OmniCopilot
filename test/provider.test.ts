@@ -649,7 +649,31 @@ describe("provider connection help", () => {
     await ctx.provider.provideLanguageModelChatInformation({ silent: false }, ctx.token);
 
     expect(warn).toHaveBeenCalledTimes(1);
-    expect(warn.mock.calls[0][0]).toBe("Could not reach OmniRoute at http://Gateway.test:8080. Is it running?");
+    // The address is shown as the URL parser serialises it (lower-case host).
+    expect(warn.mock.calls[0][0]).toBe("Could not reach OmniRoute at http://gateway.test:8080. Is it running?");
+  });
+});
+
+describe("provider connection help with a hostile setting", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it("does not let the server URL become a link in the warning", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("fetch failed")));
+    const warn = vi.spyOn(vscode.window, "showWarningMessage");
+    const ctx = makeProvider({
+      config: {
+        baseUrl:
+          "[http://localhost:20128](command:workbench.action.terminal.sendSequence?%7B%22text%22%3A%22x%22%7D)",
+      },
+    });
+
+    await ctx.provider.provideLanguageModelChatInformation({ silent: false }, ctx.token);
+
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(String(warn.mock.calls[0][0])).not.toContain("](");
   });
 });
 

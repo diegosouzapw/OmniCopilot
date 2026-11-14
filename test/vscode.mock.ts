@@ -100,6 +100,7 @@ export enum ConfigurationTarget {
 }
 
 export const workspace = {
+  onDidChangeConfiguration: (..._args: unknown[]) => disposable(),
   getConfiguration(_section?: string) {
     return {
       // Like VS Code: a folder value wins over a workspace value, which wins over
@@ -164,13 +165,35 @@ export const env = {
   remoteName: undefined as string | undefined,
 };
 
+const disposable = () => ({ dispose() {} });
+
 export const window = {
   createStatusBarItem: (..._args: unknown[]) => createStatusBarItem(),
+  createOutputChannel: (..._args: unknown[]) => ({
+    info() {},
+    warn() {},
+    error() {},
+    debug() {},
+    trace() {},
+    dispose() {},
+  }),
+  registerWebviewViewProvider: (..._args: unknown[]) => disposable(),
   showWarningMessage: async (..._args: unknown[]): Promise<undefined> => undefined,
   showInformationMessage: async (..._args: unknown[]): Promise<undefined> => undefined,
   showErrorMessage: async (..._args: unknown[]): Promise<undefined> => undefined,
 };
 
+/** Handlers registered through `commands.registerCommand`, by command id. */
+export const registeredCommands = new Map<string, (...args: unknown[]) => unknown>();
+
 export const commands = {
   executeCommand: async (..._args: unknown[]): Promise<undefined> => undefined,
+  registerCommand: (id: string, handler: (...args: unknown[]) => unknown) => {
+    registeredCommands.set(id, handler);
+    return { dispose: () => void registeredCommands.delete(id) };
+  },
+};
+
+export const lm = {
+  registerLanguageModelChatProvider: (..._args: unknown[]) => disposable(),
 };

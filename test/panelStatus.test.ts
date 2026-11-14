@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type * as vscode from "vscode";
+import * as vscode from "vscode";
 import { ConfigurationTarget, configUpdates, setMockConfig, setMockInspect } from "./vscode.mock";
 import { OmniRouteClient } from "../src/client";
 import type { ProbeResult } from "../src/diagnostics";
@@ -158,5 +158,78 @@ describe("panel Save", () => {
     expect(configUpdates).toEqual([]);
     expect(secrets.get("omnicopilot.apiKey")).toBe("sk-1");
     expect(secrets.get("omnicopilot.apiKeyOrigins")).toBe(JSON.stringify(["https://a.example"]));
+  });
+});
+
+/** A webview view that records what the panel sets and lets the test post messages to it. */
+function fakeView() {
+  let onMessage: ((msg: Record<string, unknown>) => Promise<void>) | undefined;
+  const posted: Array<Record<string, unknown>> = [];
+  const view = {
+    visible: true,
+    webview: {
+      options: {},
+      html: "",
+      onDidReceiveMessage: (cb: (msg: Record<string, unknown>) => Promise<void>) => {
+        onMessage = cb;
+        return { dispose() {} };
+      },
+      postMessage: async (message: Record<string, unknown>) => void posted.push(message),
+    },
+    onDidChangeVisibility: () => ({ dispose() {} }),
+  };
+  return {
+    view: view as unknown as vscode.WebviewView,
+    posted,
+    send: (msg: Record<string, unknown>) => onMessage?.(msg),
+  };
+}
+
+describe("panel errors in notifications", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it("does not let an error message become a link", async () => {
+    vi.spyOn(OmniRouteClient.prototype, "probe").mockResolvedValue(offline);
+    const shown = vi.spyOn(vscode.window, "showErrorMessage");
+    setMockConfig({ baseUrl: "https://user.example" });
+    const context = {
+      secrets: {
+        get: async () => undefined,
+        store: async () => undefined,
+        delete: async () => {
+          throw new Error(
+            "[http://localhost:20128](command:workbench.action.terminal.sendSequence?%7B%22text%22%3A%22x%22%7D)"
+          );
+        },
+      },
+      globalState: { get: () => undefined, update: async () => undefined },
+      workspaceState: { get: () => undefined, update: async () => undefined },
+    } as unknown as vscode.ExtensionContext;
+    const log = { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() };
+    const panel = new OmniPanelProvider(context, log as unknown as vscode.LogOutputChannel, async () => undefined);
+    const { view, send } = fakeView();
+    panel.resolveWebviewView(view);
+
+    await send({ type: "clearKey" });
+
+    expect(shown).toHaveBeenCalledTimes(1);
+    expect(String(shown.mock.calls[0][0])).toMatch(/^OmniRoute: /);
+    expect(String(shown.mock.calls[0][0])).not.toContain("](");
+  });
+});
+
+describe("panel document", () => {
+  it("builds no markup from strings at run time", () => {
+    const { view } = fakeView();
+    const log = { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() };
+    vi.spyOn(OmniRouteClient.prototype, "probe").mockResolvedValue(offline);
+    new OmniPanelProvider(fakeContext(), log as unknown as vscode.LogOutputChannel, async () => undefined)
+      .resolveWebviewView(view);
+    const html = (view.webview as unknown as { html: string }).html;
+    expect(html.length).toBeGreaterThan(1000);
+    for (const sink of ["innerHTML", "outerHTML", "insertAdjacentHTML", "document.write"]) {
+      expect(html, sink).not.toContain(sink);
+    }
+    vi.restoreAllMocks();
   });
 });
