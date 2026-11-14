@@ -635,6 +635,24 @@ describe("provider request retries", () => {
   });
 });
 
+describe("provider connection help", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it("names the server URL the request went to, not the raw setting", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("fetch failed")));
+    const warn = vi.spyOn(vscode.window, "showWarningMessage");
+    const ctx = makeProvider({ config: { baseUrl: "  Gateway.test:8080/v1/ " } });
+
+    await ctx.provider.provideLanguageModelChatInformation({ silent: false }, ctx.token);
+
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn.mock.calls[0][0]).toBe("Could not reach OmniRoute at http://Gateway.test:8080. Is it running?");
+  });
+});
+
 describe("provider test harness", () => {
   it("offers secrets, globalState and workspaceState backed by maps", async () => {
     const { context } = makeProvider();

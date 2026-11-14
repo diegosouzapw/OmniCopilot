@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import { expandForAgentsWindow } from "./agentsWindow";
 import { selectChatModels } from "./catalogFilter";
-import { DEFAULT_BASE_URL, OmniRouteClient, OmniRouteRequestError } from "./client";
+import { OmniRouteClient, OmniRouteRequestError, serverRootUrl } from "./client";
 import { SECRET_API_KEY, resolveConnection } from "./connection";
 import { estimateTokens, toOpenAiMessages, toOpenAiTools } from "./convert";
 import { describeModel } from "./modelInfo";
@@ -152,7 +152,7 @@ export class OmniRouteChatProvider
       this.deps.onActivity?.(!isNetworkError(err));
       this.deps.log.warn(`Model discovery failed: ${String(err)}`);
       if (!options.silent) {
-        void this.offerConnectionHelp();
+        void this.offerConnectionHelp(serverRootUrl(client.baseUrl));
       }
       // Contract: with silent=true never prompt; an unreachable server simply
       // contributes no models until the user fixes the connection.
@@ -231,13 +231,12 @@ export class OmniRouteChatProvider
     return expandForAgentsWindow(infos, cfg.get<boolean>("exposeToAgentsWindow", false));
   }
 
-  private async offerConnectionHelp(): Promise<void> {
-    const cfg = getConfig();
-    const baseUrl = cfg.get<string>("baseUrl", DEFAULT_BASE_URL);
+  /** `serverUrl` is the root of the resolved connection the listing went to. */
+  private async offerConnectionHelp(serverUrl: string): Promise<void> {
     const configureLabel = vscode.l10n.t("Configure Connection");
     const installLabel = vscode.l10n.t("Install OmniRoute");
     const pick = await vscode.window.showWarningMessage(
-      vscode.l10n.t("Could not reach OmniRoute at {0}. Is it running?", baseUrl),
+      vscode.l10n.t("Could not reach OmniRoute at {0}. Is it running?", serverUrl),
       configureLabel,
       installLabel
     );
